@@ -29,7 +29,7 @@ public class WhatsAppWebhookService {
     
     // WhatsApp Cloud API configuration
     private static final String WHATSAPP_API_URL = "https://graph.facebook.com/v22.0/809159228940319/messages";
-    private static final String ACCESS_TOKEN = "EAAUvTL9hTqsBPWwnA6BBvoRKOETEMaASyBNzDZBretJDbCqbxvDi87lsoKNGcvJRq3ZAahbshGWwk4JHf1IzrHfqJoMjFJyYe68Qrq0aA3Q0wE4kwk3K3N26JZB4eM5Sv0FOJdZAPXNrRk2idUW8J39WZA38iIW2ceZC5m6suySWvfTGZAzrBcWPtuZCGZBIKNfVkfdvozbLohZAZCcKMKnA7qDifZBsKqWnyw4uUZCYYl5ieP2wZD";
+    private static final String ACCESS_TOKEN = "EAAUvTL9hTqsBPRpY81ZBgrOEENJi7u8ZA4WA9S0CCSCdRHWabHSyksLnF2EBLyBmVzAJYGu6yneKauhcb1Mpuz0hSZBf8cCsmacKBXZB9frTmZBUU735qMotbYFLa2CMrhBoCXI0BFf7yJVxsFr0YY9gF8ZBSWg12TEAu7oQcePkMVQIVVVBC018S5pWmG2ZBGVHTTbnHlq6i0mH3XoSxNoe9HBrAfzcZBK7qeGbIu5LZBAZDZD";
     @Autowired
     private UserSessionRepository userSessionRepository;
     
