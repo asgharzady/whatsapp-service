@@ -28,7 +28,7 @@ public class WhatsAppWebhookService {
     private static final String EXPECTED_TOKEN = "whatsapp_webhook_token"; // replace with your verify token
     
     // WhatsApp Cloud API configuration
-    private static final String WHATSAPP_API_URL = "https://graph.facebook.com/v22.0/809159228940319/messages";
+    private static final String WHATSAPP_API_URL = "https://graph.facebook.com/v22.0/790587624136107/messages";
     private static final String ACCESS_TOKEN = "EAAUvTL9hTqsBPWGQZCsw039q0pZClibfrgoE8IwW9ESeimijKyl4gJJgFD01R0iv5F7N4bC4CezOy2NMqU4f8LsZAftlfPVwfuWXXbmvZBjhCdNqt9zU3co7G26ZAiEwZAu4BTzyDIqXCPaFSY3AqmN3oR7yYaWEkBCeNVLMVJqxJMrpJYZBCuzoma1VccBsOMZAStnZCJPA0AJEFgl36KkGc1RahZCXBvlDxaY0w2V2JaKAZDZD";
     @Autowired
     private UserSessionRepository userSessionRepository;
