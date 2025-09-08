@@ -68,10 +68,6 @@ public class WhatsAppWebhookService {
         }
         log.info("From: {}, Message: {}", from, messageText);
 
-        // Clean up expired sessions first
-        cleanupExpiredSessions();
-
-        // Get or create user session
         UserSession session = getUserSession(from);
         
         // Check if session is expired
@@ -203,16 +199,6 @@ public class WhatsAppWebhookService {
 
     private void saveSession(UserSession session) {
         userSessionRepository.save(session);
-    }
-
-    private void cleanupExpiredSessions() {
-        try {
-            LocalDateTime fiveMinutesAgo = LocalDateTime.now().minusMinutes(5);
-            userSessionRepository.deleteExpiredSessions(fiveMinutesAgo);
-            log.debug("Cleaned up expired sessions older than: {}", fiveMinutesAgo);
-        } catch (Exception e) {
-            log.error("Error cleaning up expired sessions: {}", e.getMessage(), e);
-        }
     }
 
     private void sendWhatsAppMessage(String to, String text) {
