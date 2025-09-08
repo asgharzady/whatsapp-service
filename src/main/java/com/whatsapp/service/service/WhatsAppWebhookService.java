@@ -24,6 +24,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.List;
+import java.util.ArrayList;
 
 @Service
 public class WhatsAppWebhookService {
@@ -116,8 +117,7 @@ public class WhatsAppWebhookService {
                     // Valid 6-digit OTP
                     session.setCurrentState("MERCHANT_SELECTION");
                     saveSession(session);
-                    String merchantMenu = getMerchantSelectionMenu(userNameStr);
-                    sendWhatsAppMessage(from, merchantMenu);
+                    sendMerchantSelectionButtons(from, userNameStr);
                 } else if (messageText.equals("1")) {
                     // Resend OTP option
                     sendWhatsAppMessage(from, "Hi, welcome to AppoPay\n\nOTP has been resent to your phone number.\n\nEnter your 6 digit OTP sent to your phone number.\n\nor\n\n1) Resend OTP\n\n2) Return Main Menu");
@@ -132,15 +132,15 @@ public class WhatsAppWebhookService {
                 break;
 
             case "MERCHANT_SELECTION":
-                String selectedMerchant = selectMerchantByIndex(messageText);
+                String selectedMerchant = selectMerchantByName(messageText);
                 if (selectedMerchant != null) {
                     session.setSelectedMerchant(selectedMerchant);
                     session.setCurrentState("AMOUNT_ENTRY");
                     saveSession(session);
                     sendWhatsAppMessage(from, "Hi " + userNameStr + ", welcome to AppoPay\n\nYou Are paying " + selectedMerchant + "\n\nEnter Amount in USD:");
                 } else {
-                    String merchantMenu = getMerchantSelectionMenu(userNameStr);
-                    sendWhatsAppMessage(from, "Invalid choice. " + merchantMenu);
+                    sendMerchantSelectionButtons(from, userNameStr);
+                    sendWhatsAppMessage(from, "Invalid choice. Please select a merchant from the buttons above.");
                 }
                 break;
 
@@ -330,41 +330,33 @@ public class WhatsAppWebhookService {
     }
 
     /**
-     * Get merchant selection menu by fetching merchants from the API
+     * Send merchant selection as interactive buttons
      */
-    private String getMerchantSelectionMenu(String userNameStr) {
+    private void sendMerchantSelectionButtons(String to, String userNameStr) {
         try {
             MerchantSearchResponse response = merchantService.searchMerchantData();
-            StringBuilder menu = new StringBuilder();
-            menu.append("Hi ").append(userNameStr).append(", welcome to AppoPay\n\nSelect Merchant to Pay:\n\n");
             
             if (response != null && response.getRespInfo() != null && 
                 response.getRespInfo().getRespData() != null && 
                 !response.getRespInfo().getRespData().isEmpty()) {
                 
                 List<MerchantSearchResponse.MerchantData> merchants = response.getRespInfo().getRespData();
-                for (int i = 0; i < merchants.size(); i++) {
-                    menu.append(i + 1).append(") ").append(merchants.get(i).getMerchantName()).append("\n\n");
-                }
+                sendWhatsAppInteractiveButtons(to, userNameStr, merchants);
             } else {
                 // No merchants found
-                menu.append("No merchants available at the moment. Please try again later.");
+                sendWhatsAppMessage(to, "Hi " + userNameStr + ", welcome to AppoPay\n\nNo merchants available at the moment. Please try again later.");
             }
-            
-            return menu.toString().trim();
         } catch (Exception e) {
-            log.error("Error fetching merchants: {}", e.getMessage(), e);
-            // No merchants available due to error
-            return "Hi " + userNameStr + ", welcome to AppoPay\n\nSelect Merchant to Pay:\n\nNo merchants available at the moment. Please try again later.";
+            log.error("Error fetching merchants for buttons: {}", e.getMessage(), e);
+            sendWhatsAppMessage(to, "Hi " + userNameStr + ", welcome to AppoPay\n\nNo merchants available at the moment. Please try again later.");
         }
     }
 
     /**
-     * Select merchant by index from the API response
+     * Select merchant by name from the API response (for button selections)
      */
-    private String selectMerchantByIndex(String indexStr) {
+    private String selectMerchantByName(String merchantName) {
         try {
-            int index = Integer.parseInt(indexStr);
             MerchantSearchResponse response = merchantService.searchMerchantData();
             
             if (response != null && response.getRespInfo() != null && 
@@ -372,17 +364,101 @@ public class WhatsAppWebhookService {
                 !response.getRespInfo().getRespData().isEmpty()) {
                 
                 List<MerchantSearchResponse.MerchantData> merchants = response.getRespInfo().getRespData();
-                if (index >= 1 && index <= merchants.size()) {
-                    return merchants.get(index - 1).getMerchantName();
+                for (MerchantSearchResponse.MerchantData merchant : merchants) {
+                    if (merchant.getMerchantName().equals(merchantName)) {
+                        return merchant.getMerchantName();
+                    }
                 }
             }
-            // No merchants available or invalid index
-        } catch (NumberFormatException e) {
-            log.warn("Invalid merchant index: {}", indexStr);
+            // No merchants available or merchant not found
         } catch (Exception e) {
-            log.error("Error selecting merchant by index: {}", e.getMessage(), e);
+            log.error("Error selecting merchant by name: {}", e.getMessage(), e);
         }
         return null;
+    }
+
+    /**
+     * Send WhatsApp interactive buttons for merchant selection
+     */
+    private void sendWhatsAppInteractiveButtons(String to, String userNameStr, List<MerchantSearchResponse.MerchantData> merchants) {
+        try {
+            // Create interactive message payload with buttons
+            Map<String, Object> messagePayload = new HashMap<>();
+            messagePayload.put("messaging_product", "whatsapp");
+            messagePayload.put("to", to);
+            messagePayload.put("type", "interactive");
+            
+            // Interactive content
+            Map<String, Object> interactive = new HashMap<>();
+            interactive.put("type", "button");
+            
+            // Body text
+            Map<String, String> body = new HashMap<>();
+            body.put("text", "Hi " + userNameStr + ", welcome to AppoPay\n\nSelect Merchant to Pay:");
+            interactive.put("body", body);
+            
+            // Header (optional)
+            Map<String, String> header = new HashMap<>();
+            header.put("type", "text");
+            header.put("text", "💳 Merchant Selection");
+            interactive.put("header", header);
+            
+            // Action buttons (max 3 buttons for WhatsApp)
+            Map<String, Object> action = new HashMap<>();
+            List<Map<String, Object>> buttons = new ArrayList<>();
+            
+            // Add merchant buttons (limit to 3 due to WhatsApp restrictions)
+            int maxButtons = Math.min(merchants.size(), 3);
+            for (int i = 0; i < maxButtons; i++) {
+                Map<String, Object> button = new HashMap<>();
+                button.put("type", "reply");
+                
+                Map<String, String> reply = new HashMap<>();
+                reply.put("id", "merchant_" + i);
+                reply.put("title", merchants.get(i).getMerchantName());
+                button.put("reply", reply);
+                
+                buttons.add(button);
+            }
+            
+            action.put("buttons", buttons);
+            interactive.put("action", action);
+            messagePayload.put("interactive", interactive);
+            
+            // Set up headers
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.setBearerAuth(accessToken);
+            
+            // Create HTTP entity
+            HttpEntity<Map<String, Object>> requestEntity = new HttpEntity<>(messagePayload, headers);
+            
+            // Make the API call
+            ResponseEntity<String> response = restTemplate.exchange(
+                whatsappApiUrl,
+                HttpMethod.POST,
+                requestEntity,
+                String.class
+            );
+            
+            if (response.getStatusCode().is2xxSuccessful()) {
+                log.info("Interactive buttons sent successfully to {}", to);
+                log.debug("WhatsApp API response: {}", response.getBody());
+            } else {
+                log.error("Failed to send interactive buttons to {}. Status: {}, Response: {}", 
+                    to, response.getStatusCode(), response.getBody());
+            }
+            
+        } catch (Exception e) {
+            log.error("Error sending WhatsApp interactive buttons to {}: {}", to, e.getMessage(), e);
+            // Fallback to regular text message
+            StringBuilder fallbackMenu = new StringBuilder();
+            fallbackMenu.append("Hi ").append(userNameStr).append(", welcome to AppoPay\n\nSelect Merchant to Pay:\n\n");
+            for (int i = 0; i < merchants.size(); i++) {
+                fallbackMenu.append(i + 1).append(") ").append(merchants.get(i).getMerchantName()).append("\n\n");
+            }
+            sendWhatsAppMessage(to, fallbackMenu.toString().trim());
+        }
     }
 
 }
