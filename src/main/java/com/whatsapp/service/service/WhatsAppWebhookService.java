@@ -16,11 +16,14 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.whatsapp.service.entity.UserSession;
 import com.whatsapp.service.repository.UserSessionRepository;
+import com.whatsapp.service.dto.MerchantSearchResponse;
+import com.whatsapp.service.service.MerchantService;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.List;
 
 @Service
 public class WhatsAppWebhookService {
@@ -38,6 +41,9 @@ public class WhatsAppWebhookService {
     private String accessToken;
     @Autowired
     private UserSessionRepository userSessionRepository;
+    
+    @Autowired
+    private MerchantService merchantService;
     
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final RestTemplate restTemplate = new RestTemplate();
@@ -110,7 +116,8 @@ public class WhatsAppWebhookService {
                     // Valid 6-digit OTP
                     session.setCurrentState("MERCHANT_SELECTION");
                     saveSession(session);
-                    sendWhatsAppMessage(from, "Hi " + userNameStr + ", welcome to AppoPay\n\nSelect Merchant to Pay:\n\n1) Fruita\n\n2) Restaurant 1\n\n3) Restaurant 2\n\n4) Restaurant 3");
+                    String merchantMenu = getMerchantSelectionMenu(userNameStr);
+                    sendWhatsAppMessage(from, merchantMenu);
                 } else if (messageText.equals("1")) {
                     // Resend OTP option
                     sendWhatsAppMessage(from, "Hi, welcome to AppoPay\n\nOTP has been resent to your phone number.\n\nEnter your 6 digit OTP sent to your phone number.\n\nor\n\n1) Resend OTP\n\n2) Return Main Menu");
@@ -125,28 +132,16 @@ public class WhatsAppWebhookService {
                 break;
 
             case "MERCHANT_SELECTION":
-                String merchantName = "";
-                switch (messageText) {
-                    case "1":
-                        merchantName = "Fruita";
-                        break;
-                    case "2":
-                        merchantName = "Restaurant 1";
-                        break;
-                    case "3":
-                        merchantName = "Restaurant 2";
-                        break;
-                    case "4":
-                        merchantName = "Restaurant 3";
-                        break;
-                    default:
-                        sendWhatsAppMessage(from, "Invalid choice. Please select a merchant:\n\n1) Fruita\n\n2) Restaurant 1\n\n3) Restaurant 2\n\n4) Restaurant 3");
-                        return;
+                String selectedMerchant = selectMerchantByIndex(messageText);
+                if (selectedMerchant != null) {
+                    session.setSelectedMerchant(selectedMerchant);
+                    session.setCurrentState("AMOUNT_ENTRY");
+                    saveSession(session);
+                    sendWhatsAppMessage(from, "Hi " + userNameStr + ", welcome to AppoPay\n\nYou Are paying " + selectedMerchant + "\n\nEnter Amount in USD:");
+                } else {
+                    String merchantMenu = getMerchantSelectionMenu(userNameStr);
+                    sendWhatsAppMessage(from, "Invalid choice. " + merchantMenu);
                 }
-                session.setSelectedMerchant(merchantName);
-                session.setCurrentState("AMOUNT_ENTRY");
-                saveSession(session);
-                sendWhatsAppMessage(from, "Hi " + userNameStr + ", welcome to AppoPay\n\nYou Are paying " + merchantName + "\n\nEnter Amount in USD:");
                 break;
 
             case "AMOUNT_ENTRY":
@@ -332,6 +327,62 @@ public class WhatsAppWebhookService {
         } catch (Exception e) {
             return n.toString();
         }
+    }
+
+    /**
+     * Get merchant selection menu by fetching merchants from the API
+     */
+    private String getMerchantSelectionMenu(String userNameStr) {
+        try {
+            MerchantSearchResponse response = merchantService.searchMerchantData();
+            StringBuilder menu = new StringBuilder();
+            menu.append("Hi ").append(userNameStr).append(", welcome to AppoPay\n\nSelect Merchant to Pay:\n\n");
+            
+            if (response != null && response.getRespInfo() != null && 
+                response.getRespInfo().getRespData() != null && 
+                !response.getRespInfo().getRespData().isEmpty()) {
+                
+                List<MerchantSearchResponse.MerchantData> merchants = response.getRespInfo().getRespData();
+                for (int i = 0; i < merchants.size(); i++) {
+                    menu.append(i + 1).append(") ").append(merchants.get(i).getMerchantName()).append("\n\n");
+                }
+            } else {
+                // No merchants found
+                menu.append("No merchants available at the moment. Please try again later.");
+            }
+            
+            return menu.toString().trim();
+        } catch (Exception e) {
+            log.error("Error fetching merchants: {}", e.getMessage(), e);
+            // No merchants available due to error
+            return "Hi " + userNameStr + ", welcome to AppoPay\n\nSelect Merchant to Pay:\n\nNo merchants available at the moment. Please try again later.";
+        }
+    }
+
+    /**
+     * Select merchant by index from the API response
+     */
+    private String selectMerchantByIndex(String indexStr) {
+        try {
+            int index = Integer.parseInt(indexStr);
+            MerchantSearchResponse response = merchantService.searchMerchantData();
+            
+            if (response != null && response.getRespInfo() != null && 
+                response.getRespInfo().getRespData() != null && 
+                !response.getRespInfo().getRespData().isEmpty()) {
+                
+                List<MerchantSearchResponse.MerchantData> merchants = response.getRespInfo().getRespData();
+                if (index >= 1 && index <= merchants.size()) {
+                    return merchants.get(index - 1).getMerchantName();
+                }
+            }
+            // No merchants available or invalid index
+        } catch (NumberFormatException e) { add .
+            log.warn("Invalid merchant index: {}", indexStr);
+        } catch (Exception e) {
+            log.error("Error selecting merchant by index: {}", e.getMessage(), e);
+        }
+        return null;
     }
 
 }
