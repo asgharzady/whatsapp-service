@@ -377,7 +377,7 @@ public class WhatsAppWebhookService {
                 }
             }
             // No merchants available or invalid index
-        } catch (NumberFormatException e) { add .
+        } catch (NumberFormatException e) {
             log.warn("Invalid merchant index: {}", indexStr);
         } catch (Exception e) {
             log.error("Error selecting merchant by index: {}", e.getMessage(), e);
