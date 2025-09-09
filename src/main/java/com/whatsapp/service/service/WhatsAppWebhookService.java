@@ -1,5 +1,6 @@
 package com.whatsapp.service.service;
 
+import com.whatsapp.service.dto.OtpResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -38,7 +39,6 @@ public class WhatsAppWebhookService {
     private UserSessionRepository userSessionRepository;
     @Autowired
     private MerchantService merchantService;
-
     @Autowired
     private OtpService otpService;
     private final ObjectMapper objectMapper = new ObjectMapper();
@@ -104,10 +104,18 @@ public class WhatsAppWebhookService {
             case "OTP_ENTRY":
                 // Check if it's a 6-digit OTP or menu option
                 if (messageText.matches("\\d{6}")) {
-                    // Valid 6-digit OTP
-                    session.setCurrentState("MERCHANT_SELECTION");
-                    saveSession(session);
-                    sendMerchantSelectionButtons(from);
+                    String fullPhoneNumber = formatWhatsAppNumberForValidation(from);
+                    OtpResponse otpValidationResult = otpService.validateOtp(fullPhoneNumber, messageText);
+                    
+                    if ("200".equals(otpValidationResult.getStatus()) && "true".equals(otpValidationResult.getMessage())) {
+                        log.info("OTP validation successful for user: {}", from);
+                        session.setCurrentState("MERCHANT_SELECTION");
+                        saveSession(session);
+                        sendMerchantSelectionButtons(from);
+                    } else {
+                        log.warn("OTP validation failed for user: {}", from);
+                        sendWhatsAppMessage(from, "Invalid OTP. Please try again.\n\nEnter your 6 digit OTP sent to your phone number.\n\nor\n\n1) Resend OTP\n\n2) Return Main Menu");
+                    }
                 } else if (messageText.equals("1")) {
                     otpService.sendOtpWithWhatsappNo(from);
                     sendWhatsAppMessage(from, "Hi, welcome to AppoPay\n\nOTP has been resent to your phone number.\n\nEnter your 6 digit OTP sent to your phone number.\n\nor\n\n1) Resend OTP\n\n2) Return Main Menu");
@@ -434,6 +442,9 @@ public class WhatsAppWebhookService {
             }
             sendWhatsAppMessage(to, fallbackMenu.toString().trim());
         }
+    }
+    private String formatWhatsAppNumberForValidation(String whatsappNumber) {
+        return "+" + whatsappNumber;
     }
 
 }

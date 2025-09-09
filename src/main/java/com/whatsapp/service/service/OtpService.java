@@ -17,6 +17,10 @@ import org.springframework.web.util.UriComponentsBuilder;
 
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.net.URI;
 
 @Service
 public class OtpService {
@@ -84,36 +88,55 @@ public class OtpService {
             if (token == null) {
                 return new OtpResponse("500", "Failed to authenticate with OTP service");
             }
-            
-            // URL encode the mobile number to handle special characters like '+'
             String encodedMobileNumber = URLEncoder.encode(mobileNumber, StandardCharsets.UTF_8);
-            
-            // Set up headers
-            HttpHeaders headers = new HttpHeaders();
-            headers.setBearerAuth(token);
-            
-            // Create HTTP entity
-            HttpEntity<String> requestEntity = new HttpEntity<>(headers);
-            
+
             String url = baseUrl + "/twilio/validateOTP/" + encodedMobileNumber + "/" + otp;
             log.info("Validating OTP for {} with OTP {}", mobileNumber, otp);
+
+            HttpClient client = HttpClient.newHttpClient();
             
-            // Make the API call
-            ResponseEntity<OtpResponse> response = restTemplate.exchange(
-                url,
-                HttpMethod.GET,
-                requestEntity,
-                OtpResponse.class
-            );
+            HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(url))
+                .header("accept", "*/*")
+                .header("Authorization", "Bearer " + token)
+                .GET()
+                .build();
+                
+            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
             
-            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
-                log.info("OTP validation completed for {}: {}", mobileNumber, response.getBody().getMessage());
-                return response.getBody();
+            log.info("Response status: " + response.statusCode());
+            log.info("Response body: " + response.body());
+
+            if (response.statusCode() == 200) {
+                // Parse the JSON response manually
+                String responseBody = response.body();
+                try {
+                    // Simple JSON parsing - assuming the response format is correct
+                    if (responseBody.contains("\"status\":\"200\"")) {
+                        // Extract the message field
+                        String message = "false"; // default
+                        if (responseBody.contains("\"message\":\"true\"")) {
+                            message = "true";
+                        } else if (responseBody.contains("\"message\":\"false\"")) {
+                            message = "false";
+                        }
+                        
+                        log.info("OTP validation completed for {}: {}", mobileNumber, message);
+                        return new OtpResponse("200", message);
+                    } else {
+                        log.error("Failed to validate OTP. Response: {}", responseBody);
+                        return new OtpResponse("500", "Failed to validate OTP");
+                    }
+                } catch (Exception parseEx) {
+                    log.error("Error parsing response: {}", parseEx.getMessage());
+                    return new OtpResponse("500", "Error parsing response");
+                }
             } else {
-                log.error("Failed to validate OTP. Status: {}", response.getStatusCode());
+                log.error("Failed to validate OTP. Status: {}, Response: {}", 
+                    response.statusCode(), response.body());
                 return new OtpResponse("500", "Failed to validate OTP");
             }
-            
+
         } catch (Exception e) {
             log.error("Error validating OTP for {}: {}", mobileNumber, e.getMessage(), e);
             return new OtpResponse("500", "Error validating OTP: " + e.getMessage());
@@ -136,6 +159,7 @@ public class OtpService {
             HttpEntity<String> requestEntity = new HttpEntity<>("", headers);
             
             log.info("Authenticating with OTP service...");
+            log.info("Auth URL: {}", loginUrl);
             
             // Make the authentication call
             ResponseEntity<AuthResponse> response = restTemplate.exchange(
@@ -167,8 +191,6 @@ public class OtpService {
 
 
     public void sendOtpWithWhatsappNo(String fullNumber){
-        log.info("hereeeeeeeeeeeeeeee otp");
-        log.info("+" + fullNumber.substring(0,2),fullNumber.substring(2));
         sendOtp(fullNumber.substring(2),"+" + fullNumber.substring(0,2));
     }
 
