@@ -392,12 +392,20 @@ public class WhatsAppWebhookService {
             for (int i = 0; i < maxMerchants; i++) {
                 Map<String, Object> row = new HashMap<>();
                 row.put("id", "merchant_" + i);
-                row.put("title", merchants.get(i).getMerchantName());
                 
-                // Add description with street name if available
-                String description = "Select to pay " + merchants.get(i).getMerchantName();
+                // Truncate merchant name to 24 characters (WhatsApp limit)
+                String merchantName = merchants.get(i).getMerchantName();
+                String truncatedName = merchantName.length() > 24 ? merchantName.substring(0, 24) : merchantName;
+                row.put("title", truncatedName);
+                
+                // Add description with full merchant name and street name if available
+                String description = "Select to pay " + merchantName;
                 if (merchants.get(i).getStreetName() != null && !merchants.get(i).getStreetName().isEmpty()) {
-                    description = merchants.get(i).getStreetName();
+                    description = merchants.get(i).getStreetName() + " - " + merchantName;
+                }
+                // Truncate description to 72 characters (WhatsApp limit)
+                if (description.length() > 72) {
+                    description = description.substring(0, 72);
                 }
                 row.put("description", description);
                 
