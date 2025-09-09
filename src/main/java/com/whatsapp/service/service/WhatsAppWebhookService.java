@@ -304,6 +304,7 @@ public class WhatsAppWebhookService {
      */
     private void sendMerchantSelectionButtons(String to) {
         try {
+            log.info("Attempting to send merchant selection to: {}", to);
             MerchantSearchResponse response = merchantService.searchMerchantData();
             
             if (response != null && response.getRespInfo() != null && 
@@ -311,9 +312,11 @@ public class WhatsAppWebhookService {
                 !response.getRespInfo().getRespData().isEmpty()) {
                 
                 List<MerchantSearchResponse.MerchantData> merchants = response.getRespInfo().getRespData();
+                log.info("Found {} merchants, sending interactive list", merchants.size());
                 sendWhatsAppInteractiveList(to, merchants);
             } else {
                 // No merchants found
+                log.warn("No merchants found in API response");
                 sendWhatsAppMessage(to, "Hi, welcome to AppoPay\n\nNo merchants available at the moment. Please try again later.");
             }
         } catch (Exception e) {
@@ -408,6 +411,9 @@ public class WhatsAppWebhookService {
             interactive.put("action", action);
             messagePayload.put("interactive", interactive);
             
+            log.info("Interactive list payload created for {}", to);
+            log.debug("Payload: {}", messagePayload);
+            
             // Set up headers
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
@@ -415,6 +421,8 @@ public class WhatsAppWebhookService {
             
             // Create HTTP entity
             HttpEntity<Map<String, Object>> requestEntity = new HttpEntity<>(messagePayload, headers);
+            
+            log.info("Sending interactive list to WhatsApp API...");
             
             // Make the API call
             ResponseEntity<String> response = restTemplate.exchange(
@@ -424,16 +432,19 @@ public class WhatsAppWebhookService {
                 String.class
             );
             
+            log.info("WhatsApp API response status: {}", response.getStatusCode());
+            log.info("WhatsApp API response body: {}", response.getBody());
+            
             if (response.getStatusCode().is2xxSuccessful()) {
                 log.info("Interactive list sent successfully to {}", to);
-                log.debug("WhatsApp API response: {}", response.getBody());
             } else {
-                log.error("Failed to send interactive list to {}. Status: {}, Response: {}", 
+                log.info("Failed to send interactive list to {}. Status: {}, Response: {}",
                     to, response.getStatusCode(), response.getBody());
+                throw new RuntimeException("WhatsApp API rejected interactive list");
             }
             
         } catch (Exception e) {
-            log.error("Error sending WhatsApp interactive list to {}: {}", to, e.getMessage(), e);
+            log.info("Error sending WhatsApp interactive list to {}: {}", to, e.getMessage(), e);
             // Fallback to regular text message
             StringBuilder fallbackMenu = new StringBuilder();
             fallbackMenu.append("Hi, welcome to AppoPay\n\nSelect Merchant to Pay:\n\n");
