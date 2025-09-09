@@ -169,7 +169,7 @@ public class OtpService {
     public void sendOtpWithWhatsappNo(String fullNumber){
         log.info("hereeeeeeeeeeeeeeee otp");
         log.info("+" + fullNumber.substring(0,2),fullNumber.substring(2));
-        sendOtp("+" + fullNumber.substring(0,2),fullNumber.substring(2));
+        sendOtp(fullNumber.substring(2),"+" + fullNumber.substring(0,2));
     }
 
 }
