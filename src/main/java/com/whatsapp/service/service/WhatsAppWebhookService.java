@@ -18,6 +18,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.whatsapp.service.entity.UserSession;
 import com.whatsapp.service.repository.UserSessionRepository;
 import com.whatsapp.service.dto.MerchantSearchResponse;
+import com.whatsapp.service.util.WhatsAppUtils;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
@@ -331,12 +332,12 @@ public class WhatsAppWebhookService {
 
                 List<MerchantSearchResponse.MerchantData> merchants = response.getRespInfo().getRespData();
                 for (MerchantSearchResponse.MerchantData merchant : merchants) {
-                    if (merchant.getMerchantName().equals(merchantName)) {
+                    if (merchant.getMerchantName().equals(merchantName) || 
+                        WhatsAppUtils.truncateMerchantNameForTitle(merchant.getMerchantName()).equals(merchantName)) {
                         return merchant.getMerchantName();
                     }
                 }
             }
-            // No merchants available or merchant not found
         } catch (Exception e) {
             log.error("Error selecting merchant by name: {}", e.getMessage(), e);
         }
@@ -386,20 +387,16 @@ public class WhatsAppWebhookService {
                 Map<String, Object> row = new HashMap<>();
                 row.put("id", "merchant_" + i);
 
-                // Truncate merchant name to 24 characters (WhatsApp limit)
+                // Use utility function to truncate merchant name for title
                 String merchantName = merchants.get(i).getMerchantName();
-                String truncatedName = merchantName.length() > 24 ? merchantName.substring(0, 24) : merchantName;
+                String truncatedName = WhatsAppUtils.truncateMerchantNameForTitle(merchantName);
                 row.put("title", truncatedName);
 
-                // Add description with full merchant name and street name if available
-                String description = "Select to pay " + merchantName;
-                if (merchants.get(i).getStreetName() != null && !merchants.get(i).getStreetName().isEmpty()) {
-                    description = merchants.get(i).getStreetName() + " - " + merchantName;
-                }
-                // Truncate description to 72 characters (WhatsApp limit)
-                if (description.length() > 72) {
-                    description = description.substring(0, 72);
-                }
+                // Use utility function to create and truncate description
+                String description = WhatsAppUtils.createMerchantDescription(
+                    merchantName, 
+                    merchants.get(i).getStreetName()
+                );
                 row.put("description", description);
 
                 rows.add(row);
