@@ -18,7 +18,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.whatsapp.service.entity.UserSession;
 import com.whatsapp.service.repository.UserSessionRepository;
 import com.whatsapp.service.dto.MerchantSearchResponse;
-    import java.time.LocalDateTime;
+
+import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -29,6 +30,8 @@ import java.util.ArrayList;
 public class WhatsAppWebhookService {
 
     private static final Logger log = LoggerFactory.getLogger(WhatsAppWebhookService.class);
+    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final RestTemplate restTemplate = new RestTemplate();
     @Value("${whatsapp.webhook.expected-token}")
     private String expectedToken;
     @Value("${whatsapp.api.url}")
@@ -41,8 +44,6 @@ public class WhatsAppWebhookService {
     private MerchantService merchantService;
     @Autowired
     private OtpService otpService;
-    private final ObjectMapper objectMapper = new ObjectMapper();
-    private final RestTemplate restTemplate = new RestTemplate();
 
     public ResponseEntity<String> verifyWebhook(String mode, String verifyToken, String challenge) {
         if ("subscribe".equals(mode) && expectedToken.equals(verifyToken)) {
@@ -72,7 +73,7 @@ public class WhatsAppWebhookService {
         log.info("From: {}, Message: {}", from, messageText);
 
         UserSession session = getUserSession(from);
-        
+
         // Check if session is expired
         if (session.isExpired()) {
             log.info("Session expired for user: {}", from);
@@ -80,12 +81,12 @@ public class WhatsAppWebhookService {
             session.setCurrentState("LANGUAGE_SELECTION");
             session.setSelectedMerchant(null);
         }
-        
+
         // Update last activity
         session.updateLastActivity();
-        
+
         String state = session.getCurrentState();
-        
+
         switch (state) {
             case "LANGUAGE_SELECTION":
                 if (messageText.equals("1") || messageText.equals("2")) {
@@ -106,7 +107,7 @@ public class WhatsAppWebhookService {
                 if (messageText.matches("\\d{6}")) {
                     String fullPhoneNumber = formatWhatsAppNumberForValidation(from);
                     OtpResponse otpValidationResult = otpService.validateOtp(fullPhoneNumber, messageText);
-                    
+
                     if ("200".equals(otpValidationResult.getStatus()) && "true".equals(otpValidationResult.getMessage())) {
                         log.info("OTP validation successful for user: {}", from);
                         session.setCurrentState("MERCHANT_SELECTION");
@@ -131,15 +132,15 @@ public class WhatsAppWebhookService {
 
             case "MERCHANT_SELECTION":
                 String selectedMerchant = selectMerchantByName(messageText);
-                if (selectedMerchant != null) {
-                    session.setSelectedMerchant(selectedMerchant);
-                    session.setCurrentState("AMOUNT_ENTRY");
-                    saveSession(session);
-                    sendWhatsAppMessage(from, "Hi, welcome to AppoPay\n\nYou Are paying " + selectedMerchant + "\n\nEnter Amount in USD:");
-                } else {
-                    sendMerchantSelectionButtons(from);
-                    sendWhatsAppMessage(from, "Invalid choice. Please select a merchant from the buttons above.");
-                }
+//                if (selectedMerchant != null) {
+                session.setSelectedMerchant(selectedMerchant);
+                session.setCurrentState("AMOUNT_ENTRY");
+                saveSession(session);
+                sendWhatsAppMessage(from, "Hi, welcome to AppoPay\n\nYou Are paying " + selectedMerchant + "\n\nEnter Amount in USD:");
+//                } else {
+//                    sendMerchantSelectionButtons(from);
+//                    sendWhatsAppMessage(from, "Invalid choice. Please select a merchant from the buttons above.");
+//                }
                 break;
 
             case "AMOUNT_ENTRY":
@@ -172,7 +173,7 @@ public class WhatsAppWebhookService {
                     session.setCurrentState("PAYMENT_SUCCESS");
                     String merchant = session.getSelectedMerchant();
                     sendWhatsAppMessage(from, "Hi, welcome to AppoPay\n\nYou Are paying " + merchant + "\n\npayment Successful");
-                    
+
                     // Auto-transition back to language selection after payment success
                     session.setCurrentState("LANGUAGE_SELECTION");
                     session.setSelectedMerchant(null);
@@ -197,16 +198,18 @@ public class WhatsAppWebhookService {
                 sendWhatsAppMessage(from, getLanguageSelectionMenu());
         }
     }
+
     private String getLanguageSelectionMenu() {
         return "Hi, welcome to AppoPay\n\n\n\nlanguage Selection\n\n1) English\n\n2) Spanish";
     }
+
     private UserSession getUserSession(String phoneNumber) {
         Optional<UserSession> existingSession = userSessionRepository.findByPhoneNumber(phoneNumber);
-        
+
         if (existingSession.isPresent()) {
             return existingSession.get();
         }
-        
+
         // Create new session
         UserSession newSession = new UserSession(phoneNumber, "LANGUAGE_SELECTION");
         return userSessionRepository.save(newSession);
@@ -222,7 +225,7 @@ public class WhatsAppWebhookService {
             messagePayload.put("messaging_product", "whatsapp");
             messagePayload.put("to", to);
             messagePayload.put("type", "text");
-            
+
             Map<String, String> textContent = new HashMap<>();
             textContent.put("body", text);
             messagePayload.put("text", textContent);
@@ -230,26 +233,20 @@ public class WhatsAppWebhookService {
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
             headers.setBearerAuth(accessToken);
-            
+
             // Create HTTP entity
             HttpEntity<Map<String, Object>> requestEntity = new HttpEntity<>(messagePayload, headers);
-            
+
             // Make the API call
-            ResponseEntity<String> response = restTemplate.exchange(
-                whatsappApiUrl,
-                HttpMethod.POST,
-                requestEntity,
-                String.class
-            );
-            
+            ResponseEntity<String> response = restTemplate.exchange(whatsappApiUrl, HttpMethod.POST, requestEntity, String.class);
+
             if (response.getStatusCode().is2xxSuccessful()) {
                 log.info("Message sent successfully to {}: {}", to, text);
                 log.debug("WhatsApp API response: {}", response.getBody());
             } else {
-                log.error("Failed to send message to {}. Status: {}, Response: {}", 
-                    to, response.getStatusCode(), response.getBody());
+                log.error("Failed to send message to {}. Status: {}, Response: {}", to, response.getStatusCode(), response.getBody());
             }
-            
+
         } catch (Exception e) {
             log.error("Error sending WhatsApp message to {}: {}", to, e.getMessage(), e);
         }
@@ -306,11 +303,9 @@ public class WhatsAppWebhookService {
         try {
             log.info("Attempting to send merchant selection to: {}", to);
             MerchantSearchResponse response = merchantService.searchMerchantData();
-            
-            if (response != null && response.getRespInfo() != null && 
-                response.getRespInfo().getRespData() != null && 
-                !response.getRespInfo().getRespData().isEmpty()) {
-                
+
+            if (response != null && response.getRespInfo() != null && response.getRespInfo().getRespData() != null && !response.getRespInfo().getRespData().isEmpty()) {
+
                 List<MerchantSearchResponse.MerchantData> merchants = response.getRespInfo().getRespData();
                 log.info("Found {} merchants, sending interactive list", merchants.size());
                 sendWhatsAppInteractiveList(to, merchants);
@@ -331,11 +326,9 @@ public class WhatsAppWebhookService {
     private String selectMerchantByName(String merchantName) {
         try {
             MerchantSearchResponse response = merchantService.searchMerchantData();
-            
-            if (response != null && response.getRespInfo() != null && 
-                response.getRespInfo().getRespData() != null && 
-                !response.getRespInfo().getRespData().isEmpty()) {
-                
+
+            if (response != null && response.getRespInfo() != null && response.getRespInfo().getRespData() != null && !response.getRespInfo().getRespData().isEmpty()) {
+
                 List<MerchantSearchResponse.MerchantData> merchants = response.getRespInfo().getRespData();
                 for (MerchantSearchResponse.MerchantData merchant : merchants) {
                     if (merchant.getMerchantName().equals(merchantName)) {
@@ -360,44 +353,44 @@ public class WhatsAppWebhookService {
             messagePayload.put("messaging_product", "whatsapp");
             messagePayload.put("to", to);
             messagePayload.put("type", "interactive");
-            
+
             // Interactive content
             Map<String, Object> interactive = new HashMap<>();
             interactive.put("type", "list");
-            
+
             // Body text
             Map<String, String> body = new HashMap<>();
             body.put("text", "Hi, welcome to AppoPay\n\nSelect a merchant to pay:");
             interactive.put("body", body);
-            
+
             // Header (optional)
             Map<String, String> header = new HashMap<>();
             header.put("type", "text");
             header.put("text", "💳 Merchant Selection");
             interactive.put("header", header);
-            
+
             // Action with list
             Map<String, Object> action = new HashMap<>();
             action.put("button", "View Merchants");
-            
+
             // List sections (can have multiple sections, each with up to 10 rows)
             List<Map<String, Object>> sections = new ArrayList<>();
             Map<String, Object> section = new HashMap<>();
             section.put("title", "Available Merchants");
-            
+
             // List rows (max 10 merchants per list)
             List<Map<String, Object>> rows = new ArrayList<>();
             int maxMerchants = Math.min(merchants.size(), 10);
-            
+
             for (int i = 0; i < maxMerchants; i++) {
                 Map<String, Object> row = new HashMap<>();
                 row.put("id", "merchant_" + i);
-                
+
                 // Truncate merchant name to 24 characters (WhatsApp limit)
                 String merchantName = merchants.get(i).getMerchantName();
                 String truncatedName = merchantName.length() > 24 ? merchantName.substring(0, 24) : merchantName;
                 row.put("title", truncatedName);
-                
+
                 // Add description with full merchant name and street name if available
                 String description = "Select to pay " + merchantName;
                 if (merchants.get(i).getStreetName() != null && !merchants.get(i).getStreetName().isEmpty()) {
@@ -408,49 +401,43 @@ public class WhatsAppWebhookService {
                     description = description.substring(0, 72);
                 }
                 row.put("description", description);
-                
+
                 rows.add(row);
             }
-            
+
             section.put("rows", rows);
             sections.add(section);
             action.put("sections", sections);
-            
+
             interactive.put("action", action);
             messagePayload.put("interactive", interactive);
-            
+
             log.info("Interactive list payload created for {}", to);
             log.debug("Payload: {}", messagePayload);
-            
+
             // Set up headers
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
             headers.setBearerAuth(accessToken);
-            
+
             // Create HTTP entity
             HttpEntity<Map<String, Object>> requestEntity = new HttpEntity<>(messagePayload, headers);
-            
+
             log.info("Sending interactive list to WhatsApp API...");
-            
+
             // Make the API call
-            ResponseEntity<String> response = restTemplate.exchange(
-                whatsappApiUrl,
-                HttpMethod.POST,
-                requestEntity,
-                String.class
-            );
-            
+            ResponseEntity<String> response = restTemplate.exchange(whatsappApiUrl, HttpMethod.POST, requestEntity, String.class);
+
             log.info("WhatsApp API response status: {}", response.getStatusCode());
             log.info("WhatsApp API response body: {}", response.getBody());
-            
+
             if (response.getStatusCode().is2xxSuccessful()) {
                 log.info("Interactive list sent successfully to {}", to);
             } else {
-                log.info("Failed to send interactive list to {}. Status: {}, Response: {}",
-                    to, response.getStatusCode(), response.getBody());
+                log.info("Failed to send interactive list to {}. Status: {}, Response: {}", to, response.getStatusCode(), response.getBody());
                 throw new RuntimeException("WhatsApp API rejected interactive list");
             }
-            
+
         } catch (Exception e) {
             log.info("Error sending WhatsApp interactive list to {}: {}", to, e.getMessage(), e);
             // Fallback to regular text message
@@ -462,6 +449,7 @@ public class WhatsAppWebhookService {
             sendWhatsAppMessage(to, fallbackMenu.toString().trim());
         }
     }
+
     private String formatWhatsAppNumberForValidation(String whatsappNumber) {
         return "+" + whatsappNumber;
     }
