@@ -38,6 +38,9 @@ public class WhatsAppWebhookService {
     private UserSessionRepository userSessionRepository;
     @Autowired
     private MerchantService merchantService;
+
+    @Autowired
+    private OtpService otpService;
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final RestTemplate restTemplate = new RestTemplate();
 
@@ -91,7 +94,7 @@ public class WhatsAppWebhookService {
                     log.info("frommmmmm");
                     log.info(from);
                     System.out.println("sout from");
-
+                    otpService.sendOtpWithWhatsappNo(from);
                     sendWhatsAppMessage(from, "Hi, welcome to AppoPay\n\nEnter your 6 digit OTP sent to your phone number.\n\nor\n\n1) Resend OTP\n\n2) Return Main Menu");
                 } else {
                     sendWhatsAppMessage(from, "Invalid choice.\n\n" + getLanguageSelectionMenu());
@@ -106,7 +109,7 @@ public class WhatsAppWebhookService {
                     saveSession(session);
                     sendMerchantSelectionButtons(from);
                 } else if (messageText.equals("1")) {
-                    // Resend OTP option
+                    otpService.sendOtpWithWhatsappNo(from);
                     sendWhatsAppMessage(from, "Hi, welcome to AppoPay\n\nOTP has been resent to your phone number.\n\nEnter your 6 digit OTP sent to your phone number.\n\nor\n\n1) Resend OTP\n\n2) Return Main Menu");
                 } else if (messageText.equals("2")) {
                     // Return to main menu
