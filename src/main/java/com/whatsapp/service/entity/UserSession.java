@@ -31,6 +31,8 @@ public class UserSession {
     private String cardNo;
     @Column
     private Long cvv;
+    @Column
+    private String pin;
 
     @Column(name = "last_activity", nullable = false)
     private LocalDateTime lastActivity;

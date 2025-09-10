@@ -18,6 +18,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.whatsapp.service.entity.UserSession;
 import com.whatsapp.service.repository.UserSessionRepository;
 import com.whatsapp.service.dto.MerchantSearchResponse;
+import com.whatsapp.service.dto.PurchaseTrxRequest;
+import com.whatsapp.service.dto.PurchaseTrxResponse;
 import com.whatsapp.service.util.WhatsAppUtils;
 
 import java.time.LocalDateTime;
@@ -164,7 +166,7 @@ public class WhatsAppWebhookService {
                     session.setCardNo(messageText);
                     saveSession(session);
                     String merchant = session.getSelectedMerchant();
-                    sendWhatsAppMessage(from, "Hi, welcome to AppoPay\n\nYou Are paying " + merchant + "\n\nEnter Your 6 digit PIN:");
+                    sendWhatsAppMessage(from, "Hi, welcome to AppoPay\n\nYou Are paying " + merchant + "\n\nEnter Your CVV:");
                 } else {
                     sendWhatsAppMessage(from, "Invalid card number format. Please enter a valid card number:");
                 }
@@ -177,7 +179,7 @@ public class WhatsAppWebhookService {
                     session.setCvv(Long.parseLong(messageText));
                     saveSession(session);
                     String merchant = session.getSelectedMerchant();
-                    sendWhatsAppMessage(from, "Hi, welcome to AppoPay\n\nYou Are paying " + merchant + "\n\nEnter Your CVV:");
+                    sendWhatsAppMessage(from, "Hi, welcome to AppoPay\n\nYou Are paying " + merchant + "\n\nEnter Your 6 digit PIN:");
                 } else {
                     sendWhatsAppMessage(from, "Invalid card number format. Please enter a valid card number:");
                 }
@@ -186,11 +188,21 @@ public class WhatsAppWebhookService {
             case "PIN_ENTRY":
                 // Validate PIN format
                 if (messageText.matches("\\d{6}")) {
-                    session.setCurrentState("PAYMENT_SUCCESS");
-                    String merchant = session.getSelectedMerchant();
-                    sendWhatsAppMessage(from, "Hi, welcome to AppoPay\n\nYou Are paying " + merchant + "\n\npayment Successful");
+                    
+                    session.setPin(messageText);
+                    saveSession(session);
+                    boolean transactionSuccess = purchaseTrx(session);
+                    
+                    if (transactionSuccess) {
+                        session.setCurrentState("PAYMENT_SUCCESS");
+                        String merchant = session.getSelectedMerchant();
+                        sendWhatsAppMessage(from, "Hi, welcome to AppoPay\n\nYou Are paying " + merchant + "\n\npayment Successful");
+                    } else {
+                        String merchant = session.getSelectedMerchant();
+                        sendWhatsAppMessage(from, "Hi, welcome to AppoPay\n\nPayment to " + merchant + " failed. Please try again.\n\nEnter Your 6 digit PIN:");
+                        return;
+                    }
 
-                    // Auto-transition back to language selection after payment success
                     session.setCurrentState("LANGUAGE_SELECTION");
                     session.setSelectedMerchant(null);
                     saveSession(session);
@@ -359,9 +371,6 @@ public class WhatsAppWebhookService {
         return null;
     }
 
-    /**
-     * Send WhatsApp interactive list for merchant selection
-     */
     private void sendWhatsAppInteractiveList(String to, List<MerchantSearchResponse.MerchantData> merchants) {
         try {
             // Create interactive message payload with list
@@ -464,6 +473,55 @@ public class WhatsAppWebhookService {
 
     private String formatWhatsAppNumberForValidation(String whatsappNumber) {
         return "+" + whatsappNumber;
+    }
+
+    private boolean purchaseTrx(UserSession session){
+        try {
+            log.info("Initiating purchase transaction for session: {}", session.getPhoneNumber());
+            
+            // Create request with default values
+            PurchaseTrxRequest request = new PurchaseTrxRequest();
+            
+            // Override specific fields from UserSession
+            // Set card number in fld2
+            request.getRequestData().getIsoReqData().setFld2(session.getCardNo());
+            
+            // Set CVV in fld22 (convert Long to String)
+            request.getRequestData().getIsoReqData().setFld22(String.valueOf(session.getCvv()));
+            
+            // Set PIN in fld52
+            request.getRequestData().getIsoReqData().setFld52(session.getPin());
+            
+            log.debug("Purchase request prepared with card: {}, CVV: {}, PIN: {}", 
+                session.getCardNo(), "***", "******");
+            
+            // Call merchant service
+            PurchaseTrxResponse response = merchantService.purchaseTrx(request);
+            
+            if (response != null && response.getRespInfo() != null) {
+                String respCode = response.getRespInfo().getRespCode();
+                String respDesc = response.getRespInfo().getRespDesc();
+                
+                log.info("Purchase transaction response - Code: {}, Desc: {}", respCode, respDesc);
+                
+                // Check if transaction was successful (assuming "0" means success)
+                if ("0".equals(respCode)) {
+                    log.info("Purchase transaction successful for session: {}", session.getPhoneNumber());
+                    return true;
+                } else {
+                    log.warn("Purchase transaction failed - Code: {}, Desc: {}", respCode, respDesc);
+                    return false;
+                }
+            } else {
+                log.error("Invalid response received from purchase transaction");
+                return false;
+            }
+            
+        } catch (Exception e) {
+            log.error("Error during purchase transaction for session {}: {}", 
+                session.getPhoneNumber(), e.getMessage(), e);
+            return false;
+        }
     }
 
 }
