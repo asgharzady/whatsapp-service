@@ -198,6 +198,8 @@ public class WhatsAppWebhookService {
                         String merchant = session.getSelectedMerchant();
                         sendWhatsAppMessage(from, "Hi, welcome to AppoPay\n\nYou Are paying " + merchant + "\n\npayment Successful");
                     } else {
+                        session.setCurrentState("CARD_ENTRY");
+                        saveSession(session);
                         String merchant = session.getSelectedMerchant();
                         sendWhatsAppMessage(from, "Hi, welcome to AppoPay\n\nPayment to " + merchant + " failed. Please try again.\n\nEnter Your 6 digit PIN:");
                         return;
