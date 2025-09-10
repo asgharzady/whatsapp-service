@@ -479,21 +479,25 @@ public class WhatsAppWebhookService {
         try {
             log.info("Initiating purchase transaction for session: {}", session.getPhoneNumber());
             
-            // Create request with default values
             PurchaseTrxRequest request = new PurchaseTrxRequest();
-            
+
             // Override specific fields from UserSession
-            // Set card number in fld2
             request.getRequestData().getIsoReqData().setFld2(session.getCardNo());
-            
-            // Set CVV in fld22 (convert Long to String)
             request.getRequestData().getIsoReqData().setFld22(String.valueOf(session.getCvv()));
-            
-            // Set PIN in fld52
-            request.getRequestData().getIsoReqData().setFld52(session.getPin());
             
             log.debug("Purchase request prepared with card: {}, CVV: {}, PIN: {}", 
                 session.getCardNo(), "***", "******");
+            
+            // Print the complete request body before sending
+            try {
+                ObjectMapper objectMapper = new ObjectMapper();
+                String requestJson = objectMapper.writeValueAsString(request);
+                log.info("=== PURCHASE REQUEST BODY ===");
+                log.info("{}", requestJson);
+                log.info("=== END REQUEST BODY ===");
+            } catch (Exception e) {
+                log.warn("Failed to serialize request body for logging: {}", e.getMessage());
+            }
             
             // Call merchant service
             PurchaseTrxResponse response = merchantService.purchaseTrx(request);

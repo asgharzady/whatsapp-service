@@ -63,7 +63,6 @@ public class PurchaseTrxRequest {
         private String fld44 = "9876123456";
         private String fld49 = "850";
         private String fld51 = "850";
-        private String fld52 = "";
         private String mti = "0100";
     }
 }
