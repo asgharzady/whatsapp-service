@@ -99,7 +99,7 @@ public class WhatsAppWebhookService {
                     otpService.sendOtpWithWhatsappNo(from);
                     sendWhatsAppMessage(from, "Hi, welcome to AppoPay\n\nEnter your 6 digit OTP sent to your phone number.\n\nor\n\n1) Resend OTP\n\n2) Return Main Menu");
                 } else {
-                    sendWhatsAppMessage(from, "Invalid choice.\n\n" + getLanguageSelectionMenu());
+                    sendWhatsAppMessage(from, getLanguageSelectionMenu());
                 }
                 break;
 
@@ -148,6 +148,7 @@ public class WhatsAppWebhookService {
                 // Validate amount format (basic validation)
                 if (messageText.matches("\\d+(\\.\\d{1,2})?")) {
                     session.setCurrentState("CARD_ENTRY");
+                    session.setAmount(Long.parseLong(messageText));
                     saveSession(session);
                     String merchant = session.getSelectedMerchant();
                     sendWhatsAppMessage(from, "Hi, welcome to AppoPay\n\nYou Are paying " + merchant + "\n\nEnter Your Card number:");
@@ -159,10 +160,24 @@ public class WhatsAppWebhookService {
             case "CARD_ENTRY":
                 // Validate card number format (basic validation)
                 if (messageText.matches("\\d{13,19}")) {
-                    session.setCurrentState("PIN_ENTRY");
+                    session.setCurrentState("CVV");
+                    session.setCardNo(messageText);
                     saveSession(session);
                     String merchant = session.getSelectedMerchant();
                     sendWhatsAppMessage(from, "Hi, welcome to AppoPay\n\nYou Are paying " + merchant + "\n\nEnter Your 6 digit PIN:");
+                } else {
+                    sendWhatsAppMessage(from, "Invalid card number format. Please enter a valid card number:");
+                }
+                break;
+
+            case "CVV":
+                // Validate card number format (basic validation)
+                if (messageText.matches("\\d{3}")) {
+                    session.setCurrentState("PIN_ENTRY");
+                    session.setCvv(Long.parseLong(messageText));
+                    saveSession(session);
+                    String merchant = session.getSelectedMerchant();
+                    sendWhatsAppMessage(from, "Hi, welcome to AppoPay\n\nYou Are paying " + merchant + "\n\nEnter Your CVV:");
                 } else {
                     sendWhatsAppMessage(from, "Invalid card number format. Please enter a valid card number:");
                 }

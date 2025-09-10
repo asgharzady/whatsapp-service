@@ -1,10 +1,13 @@
 package com.whatsapp.service.entity;
 
 import jakarta.persistence.*;
+import lombok.Data;
+
 import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "user_sessions")
+@Data
 public class UserSession {
     
     @Id
@@ -22,12 +25,20 @@ public class UserSession {
     
     @Column(name = "selected_merchant")
     private String selectedMerchant;
-    
+    @Column
+    private Long amount;
+    @Column
+    private String cardNo;
+    @Column
+    private Long cvv;
+
     @Column(name = "last_activity", nullable = false)
     private LocalDateTime lastActivity;
     
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
+
+
     
     // Default constructor
     public UserSession() {
@@ -41,23 +52,7 @@ public class UserSession {
         this.phoneNumber = phoneNumber;
         this.currentState = currentState;
     }
-    
-    // Getters and Setters
-    public Long getId() {
-        return id;
-    }
-    
-    public void setId(Long id) {
-        this.id = id;
-    }
-    
-    public String getPhoneNumber() {
-        return phoneNumber;
-    }
-    
-    public void setPhoneNumber(String phoneNumber) {
-        this.phoneNumber = phoneNumber;
-    }
+
     
     public String getCurrentState() {
         return currentState;
@@ -66,14 +61,7 @@ public class UserSession {
     public void setCurrentState(String currentState) {
         this.currentState = currentState;
     }
-    
-    public String getUserName() {
-        return userName;
-    }
-    
-    public void setUserName(String userName) {
-        this.userName = userName;
-    }
+
     
     public String getSelectedMerchant() {
         return selectedMerchant;
@@ -83,22 +71,7 @@ public class UserSession {
         this.selectedMerchant = selectedMerchant;
     }
     
-    public LocalDateTime getLastActivity() {
-        return lastActivity;
-    }
-    
-    public void setLastActivity(LocalDateTime lastActivity) {
-        this.lastActivity = lastActivity;
-    }
-    
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
-    }
-    
-    public void setCreatedAt(LocalDateTime createdAt) {
-        this.createdAt = createdAt;
-    }
-    
+
     // Helper method to check if session is expired (5 minutes)
     public boolean isExpired() {
         return lastActivity.isBefore(LocalDateTime.now().minusMinutes(5));
