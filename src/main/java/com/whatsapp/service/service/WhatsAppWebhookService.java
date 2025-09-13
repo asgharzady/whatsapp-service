@@ -155,7 +155,21 @@ public class WhatsAppWebhookService {
                     if (transactionSuccess) {
                         session.setCurrentState("PAYMENT_SUCCESS");
                         String merchant = session.getSelectedMerchant();
-                        sendWhatsAppMessage(from, "Hi, welcome to AppoPay\n\nYou Are paying " + merchant + "\n\npayment Successful");
+                        String amount = String.valueOf(session.getAmount()); // You can get this from session or transaction response
+
+                        String pdfId = pdfService.generateReceiptPDF(session, amount);
+                        if (pdfId != null) {
+                            String filename = "receipt_" + session.getPhoneNumber() + ".pdf";
+                            String caption = "Your receipt from " + (merchant != null ? merchant : "AppoPay") +
+                                    "\nAmount: " + amount +
+                                    "\nThank you for using AppoPay!";
+
+                            sendWhatsAppDocument(from, pdfId, filename, caption);
+                            sendWhatsAppMessage(from, "Hi, welcome to AppoPay\n\nPayment to " + merchant + " successful!\n\nYour receipt has been sent as a PDF document.");
+                        } else {
+                            sendWhatsAppMessage(from, "Hi, welcome to AppoPay\n\nPayment to " + merchant + " successful!\n\nReceipt generation failed, but your payment was processed successfully.");
+                        }
+//                        sendWhatsAppMessage(from, "Hi, welcome to AppoPay\n\nYou Are paying " + merchant + "\n\npayment Successful");
                     } else {
                         session.setCurrentState("CARD_ENTRY");
                         saveSession(session);
@@ -174,6 +188,7 @@ public class WhatsAppWebhookService {
 
             case "PAYMENT_SUCCESS":
                 // Generate and send PDF receipt
+
                 String merchant = session.getSelectedMerchant();
                 String amount = String.valueOf(session.getAmount()); // You can get this from session or transaction response
                 
