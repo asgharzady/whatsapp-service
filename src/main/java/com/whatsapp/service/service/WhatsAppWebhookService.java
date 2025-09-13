@@ -61,8 +61,6 @@ public class WhatsAppWebhookService {
     @SuppressWarnings("unchecked")
     public void processIncomingMessage(Map<String, Object> payload) {
         JsonNode root = objectMapper.valueToTree(payload);
-
-        // If this is not a message event (e.g., delivery/read statuses), ignore gracefully
         if (!hasMessage(root)) {
             log.info("Received non-message webhook (likely statuses). Ignoring.\n{}", safePretty(root));
             return;
@@ -76,8 +74,6 @@ public class WhatsAppWebhookService {
         log.info("From: {}, Message: {}", from, messageText);
 
         UserSession session = getUserSession(from);
-
-        // Check if session is expired
         if (session.isExpired()) {
             log.info("Session expired for user: {}", from);
             // Reset session to beginning
@@ -85,9 +81,7 @@ public class WhatsAppWebhookService {
             session.setSelectedMerchant(null);
         }
 
-        // Update last activity
         session.updateLastActivity();
-
         String state = session.getCurrentState();
 
         switch (state) {
@@ -97,7 +91,6 @@ public class WhatsAppWebhookService {
                     saveSession(session);
                     log.info("frommmmmm");
                     log.info(from);
-                    System.out.println("sout from");
                     otpService.sendOtpWithWhatsappNo(from);
                     sendWhatsAppMessage(from, "Hi, welcome to AppoPay\n\nEnter your 6 digit OTP sent to your phone number.\n\nor\n\n1) Resend OTP\n\n2) Return Main Menu");
                 } else {
@@ -106,11 +99,9 @@ public class WhatsAppWebhookService {
                 break;
 
             case "OTP_ENTRY":
-                // Check if it's a 6-digit OTP or menu option
                 if (messageText.matches("\\d{6}")) {
                     String fullPhoneNumber = formatWhatsAppNumberForValidation(from);
                     OtpResponse otpValidationResult = otpService.validateOtp(fullPhoneNumber, messageText);
-
                     if ("200".equals(otpValidationResult.getStatus()) && "true".equals(otpValidationResult.getMessage())) {
                         log.info("OTP validation successful for user: {}", from);
                         session.setCurrentState("MERCHANT_SELECTION");
@@ -124,7 +115,6 @@ public class WhatsAppWebhookService {
                     otpService.sendOtpWithWhatsappNo(from);
                     sendWhatsAppMessage(from, "Hi, welcome to AppoPay\n\nOTP has been resent to your phone number.\n\nEnter your 6 digit OTP sent to your phone number.\n\nor\n\n1) Resend OTP\n\n2) Return Main Menu");
                 } else if (messageText.equals("2")) {
-                    // Return to main menu
                     session.setCurrentState("LANGUAGE_SELECTION");
                     saveSession(session);
                     sendWhatsAppMessage(from, getLanguageSelectionMenu());
@@ -135,21 +125,15 @@ public class WhatsAppWebhookService {
 
             case "MERCHANT_SELECTION":
                 String selectedMerchant = selectMerchantByName(messageText);
-//                if (selectedMerchant != null) {
                 session.setSelectedMerchant(selectedMerchant);
                 session.setCurrentState("AMOUNT_ENTRY");
                 saveSession(session);
                 sendWhatsAppMessage(from, "Hi, welcome to AppoPay\n\nYou Are paying " + selectedMerchant + "\n\nEnter Amount in USD:");
-//                } else {
-//                    sendMerchantSelectionButtons(from);
-//                    sendWhatsAppMessage(from, "Invalid choice. Please select a merchant from the buttons above.");
-//                }
                 break;
 
             case "AMOUNT_ENTRY":
-                // Validate amount format (basic validation)
                 if (messageText.matches("\\d+(\\.\\d{1,2})?")) {
-                    session.setCurrentState("CARD_ENTRY");
+                    session.setCurrentState("PIN_ENTRY");
                     session.setAmount(Long.parseLong(messageText));
                     saveSession(session);
                     String merchant = session.getSelectedMerchant();
@@ -158,41 +142,12 @@ public class WhatsAppWebhookService {
                     sendWhatsAppMessage(from, "Invalid amount format. Please enter a valid amount in USD (e.g., 10.50):");
                 }
                 break;
-
-            case "CARD_ENTRY":
-                // Validate card number format (basic validation)
-                if (messageText.matches("\\d{13,19}")) {
-                    session.setCurrentState("CVV");
-                    session.setCardNo(messageText);
-                    saveSession(session);
-                    String merchant = session.getSelectedMerchant();
-                    sendWhatsAppMessage(from, "Hi, welcome to AppoPay\n\nYou Are paying " + merchant + "\n\nEnter Your CVV:");
-                } else {
-                    sendWhatsAppMessage(from, "Invalid card number format. Please enter a valid card number:");
-                }
-                break;
-
-            case "CVV":
-                // Validate card number format (basic validation)
-                if (messageText.matches("\\d{3}")) {
-                    session.setCurrentState("PIN_ENTRY");
-                    session.setCvv(Long.parseLong(messageText));
-                    saveSession(session);
-                    String merchant = session.getSelectedMerchant();
-                    sendWhatsAppMessage(from, "Hi, welcome to AppoPay\n\nYou Are paying " + merchant + "\n\nEnter Your 6 digit PIN:");
-                } else {
-                    sendWhatsAppMessage(from, "Invalid card number format. Please enter a valid card number:");
-                }
-                break;
-
             case "PIN_ENTRY":
-                // Validate PIN format
                 if (messageText.matches("\\d{6}")) {
-                    
                     session.setPin(messageText);
                     saveSession(session);
-                    boolean transactionSuccess = purchaseTrx(session);
-                    
+                    boolean transactionSuccess = true;
+//                    boolean transactionSuccess = purchaseTrx(session);
                     if (transactionSuccess) {
                         session.setCurrentState("PAYMENT_SUCCESS");
                         String merchant = session.getSelectedMerchant();
@@ -204,7 +159,6 @@ public class WhatsAppWebhookService {
                         sendWhatsAppMessage(from, "Hi, welcome to AppoPay\n\nPayment to " + merchant + " failed. Please try again.\n\nEnter Your Card number:");
                         return;
                     }
-
                     session.setCurrentState("LANGUAGE_SELECTION");
                     session.setSelectedMerchant(null);
                     saveSession(session);
@@ -215,7 +169,6 @@ public class WhatsAppWebhookService {
                 break;
 
             case "PAYMENT_SUCCESS":
-                // This state automatically transitions back to language selection
                 session.setCurrentState("LANGUAGE_SELECTION");
                 session.setSelectedMerchant(null);
                 saveSession(session);
