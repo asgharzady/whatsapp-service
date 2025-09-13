@@ -41,12 +41,16 @@ public class WhatsAppWebhookService {
     private String whatsappApiUrl;
     @Value("${whatsapp.api.access-token}")
     private String accessToken;
+    @Value("${server.base-url}")
+    private String serverBaseUrl;
     @Autowired
     private UserSessionRepository userSessionRepository;
     @Autowired
     private MerchantService merchantService;
     @Autowired
     private OtpService otpService;
+    @Autowired
+    private PdfService pdfService;
 
     public ResponseEntity<String> verifyWebhook(String mode, String verifyToken, String challenge) {
         if ("subscribe".equals(mode) && expectedToken.equals(verifyToken)) {
@@ -137,7 +141,7 @@ public class WhatsAppWebhookService {
                     session.setAmount(Long.parseLong(messageText));
                     saveSession(session);
                     String merchant = session.getSelectedMerchant();
-                    sendWhatsAppMessage(from, "Hi, welcome to AppoPay\n\nYou Are paying " + merchant + "\n\nEnter Your Card number:");
+                    sendWhatsAppMessage(from, "Hi, welcome to AppoPay\n\nYou Are paying " + merchant + "\n\nEnter Your Pin:");
                 } else {
                     sendWhatsAppMessage(from, "Invalid amount format. Please enter a valid amount in USD (e.g., 10.50):");
                 }
@@ -169,10 +173,27 @@ public class WhatsAppWebhookService {
                 break;
 
             case "PAYMENT_SUCCESS":
+                // Generate and send PDF receipt
+                String merchant = session.getSelectedMerchant();
+                String amount = String.valueOf(session.getAmount()); // You can get this from session or transaction response
+                
+                String pdfId = pdfService.generateReceiptPDF(session, amount);
+                if (pdfId != null) {
+                    String filename = "receipt_" + session.getPhoneNumber() + ".pdf";
+                    String caption = "Your receipt from " + (merchant != null ? merchant : "AppoPay") + 
+                                   "\nAmount: " + amount + 
+                                   "\nThank you for using AppoPay!";
+                    
+                    sendWhatsAppDocument(from, pdfId, filename, caption);
+                    sendWhatsAppMessage(from, "Hi, welcome to AppoPay\n\nPayment to " + merchant + " successful!\n\nYour receipt has been sent as a PDF document.");
+                } else {
+                    sendWhatsAppMessage(from, "Hi, welcome to AppoPay\n\nPayment to " + merchant + " successful!\n\nReceipt generation failed, but your payment was processed successfully.");
+                }
+                
+                // Reset session
                 session.setCurrentState("LANGUAGE_SELECTION");
                 session.setSelectedMerchant(null);
                 saveSession(session);
-                sendWhatsAppMessage(from, getLanguageSelectionMenu());
                 break;
 
             default:
@@ -480,6 +501,56 @@ public class WhatsAppWebhookService {
             log.error("Error during purchase transaction for session {}: {}", 
                 session.getPhoneNumber(), e.getMessage(), e);
             return false;
+        }
+    }
+
+
+    private void sendWhatsAppDocument(String to, String pdfId, String filename, String caption) {
+        try {
+            // Generate URL to serve PDF from our own server
+            String documentUrl = serverBaseUrl + "/api/pdf/" + pdfId;
+            
+            Map<String, Object> messagePayload = new HashMap<>();
+            messagePayload.put("messaging_product", "whatsapp");
+            messagePayload.put("to", to);
+            messagePayload.put("type", "document");
+            
+            Map<String, Object> document = new HashMap<>();
+            document.put("link", documentUrl);
+            document.put("filename", filename);
+            document.put("caption", caption);
+            
+            messagePayload.put("document", document);
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.setBearerAuth(accessToken);
+
+            HttpEntity<Map<String, Object>> entity = new HttpEntity<>(messagePayload, headers);
+            ResponseEntity<String> response = restTemplate.exchange(whatsappApiUrl, HttpMethod.POST, entity, String.class);
+
+            if (response.getStatusCode().is2xxSuccessful()) {
+                log.info("WhatsApp document sent successfully to {}", to);
+                
+                // Schedule PDF cleanup after 5 minutes (WhatsApp should have downloaded it by then)
+                new Thread(() -> {
+                    try {
+                        Thread.sleep(5 * 60 * 1000); // 5 minutes
+                        pdfService.removePdf(pdfId);
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        log.warn("PDF cleanup interrupted for ID: {}", pdfId);
+                    }
+                }).start();
+                
+            } else {
+                log.error("Failed to send WhatsApp document to {}: {}", to, response.getBody());
+                // Clean up immediately if sending failed
+                pdfService.removePdf(pdfId);
+            }
+
+        } catch (Exception e) {
+            log.error("Error sending WhatsApp document to {}: {}", to, e.getMessage(), e);
         }
     }
 
