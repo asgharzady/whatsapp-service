@@ -137,23 +137,12 @@ public class WhatsAppWebhookService {
 
             case "AMOUNT_ENTRY":
                 if (messageText.matches("\\d+(\\.\\d{1,2})?")) {
-                    session.setCurrentState("PIN_ENTRY");
+                    session.setCurrentState("LANGUAGE_SELECTION");
                     session.setAmount(Long.parseLong(messageText));
-                    saveSession(session);
-                    String merchant = session.getSelectedMerchant();
-                    sendWhatsAppMessage(from, "Hi, welcome to AppoPay\n\nYou Are paying " + merchant + "\n\nEnter Your Pin:");
-                } else {
-                    sendWhatsAppMessage(from, "Invalid amount format. Please enter a valid amount in USD (e.g., 10.50):");
-                }
-                break;
-            case "PIN_ENTRY":
-                if (messageText.matches("\\d{6}")) {
-                    session.setPin(messageText);
                     saveSession(session);
                     boolean transactionSuccess = true;
 //                    boolean transactionSuccess = purchaseTrx(session);
                     if (transactionSuccess) {
-                        session.setCurrentState("PAYMENT_SUCCESS");
                         String merchant = session.getSelectedMerchant();
                         String amount = String.valueOf(session.getAmount()); // You can get this from session or transaction response
 
@@ -169,48 +158,15 @@ public class WhatsAppWebhookService {
                         } else {
                             sendWhatsAppMessage(from, "Hi, welcome to AppoPay\n\nPayment to " + merchant + " successful!\n\nReceipt generation failed, but your payment was processed successfully.");
                         }
-//                        sendWhatsAppMessage(from, "Hi, welcome to AppoPay\n\nYou Are paying " + merchant + "\n\npayment Successful");
                     } else {
-                        session.setCurrentState("CARD_ENTRY");
-                        saveSession(session);
                         String merchant = session.getSelectedMerchant();
-                        sendWhatsAppMessage(from, "Hi, welcome to AppoPay\n\nPayment to " + merchant + " failed. Please try again.\n\nEnter Your Card number:");
+                        sendWhatsAppMessage(from, "Hi, welcome to AppoPay\n\nPayment to " + merchant + " failed. Please try again.");
                         return;
                     }
-                    session.setCurrentState("LANGUAGE_SELECTION");
-                    session.setSelectedMerchant(null);
-                    saveSession(session);
-                    sendWhatsAppMessage(from, getLanguageSelectionMenu());
                 } else {
-                    sendWhatsAppMessage(from, "Invalid PIN format. Please enter a 6-digit PIN:");
+                    sendWhatsAppMessage(from, "Invalid amount format. Please enter a valid amount in USD (e.g., 10.50):");
                 }
                 break;
-
-            case "PAYMENT_SUCCESS":
-                // Generate and send PDF receipt
-
-                String merchant = session.getSelectedMerchant();
-                String amount = String.valueOf(session.getAmount()); // You can get this from session or transaction response
-                
-                String pdfId = pdfService.generateReceiptPDF(session, amount);
-                if (pdfId != null) {
-                    String filename = "receipt_" + session.getPhoneNumber() + ".pdf";
-                    String caption = "Your receipt from " + (merchant != null ? merchant : "AppoPay") + 
-                                   "\nAmount: " + amount + 
-                                   "\nThank you for using AppoPay!";
-                    
-                    sendWhatsAppDocument(from, pdfId, filename, caption);
-                    sendWhatsAppMessage(from, "Hi, welcome to AppoPay\n\nPayment to " + merchant + " successful!\n\nYour receipt has been sent as a PDF document.");
-                } else {
-                    sendWhatsAppMessage(from, "Hi, welcome to AppoPay\n\nPayment to " + merchant + " successful!\n\nReceipt generation failed, but your payment was processed successfully.");
-                }
-                
-                // Reset session
-                session.setCurrentState("LANGUAGE_SELECTION");
-                session.setSelectedMerchant(null);
-                saveSession(session);
-                break;
-
             default:
                 session.setCurrentState("LANGUAGE_SELECTION");
                 saveSession(session);
