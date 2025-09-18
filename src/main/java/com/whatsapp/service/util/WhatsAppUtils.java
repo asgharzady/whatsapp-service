@@ -87,4 +87,40 @@ public class WhatsAppUtils {
         
         return truncateDescriptionForList(description);
     }
+
+    public static String getLastTenDigits(String input) {
+        if (input == null || input.isEmpty()) {
+            return "";
+        }
+        if (input.length() >= 10) {
+            return input.substring(input.length() - 10);
+        }
+        // If less than 10 digits, return all digits
+        return input;
+    }
+    
+    /**
+     * Splits a string into country code and mobile number parts
+     * 
+     * @param input The input string containing phone number
+     * @return Array with two elements: [0] = last 10 digits, [1] = remaining digits from start with "+" prefix
+     */
+    public static String[] splitPhoneNumber(String input) {
+        if (input == null || input.isEmpty()) {
+            return new String[]{"", ""};
+        }
+        
+        if (input.length() >= 10) {
+            String lastTenDigits = input.substring(input.length() - 10);
+            String remainingDigits = input.substring(0, input.length() - 10);
+            String countryCode = remainingDigits.isEmpty() ? "" : "+" + remainingDigits;
+            
+            return new String[]{lastTenDigits, countryCode};
+        }
+        
+        // If less than 10 digits, return the input as mobile number and empty country code
+        return new String[]{input, ""};
+    }
+    
+
 }

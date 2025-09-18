@@ -1,5 +1,6 @@
 package com.whatsapp.service.controller;
 
+import com.whatsapp.service.dto.CustomerDataResponse;
 import com.whatsapp.service.dto.MerchantSearchResponse;
 import com.whatsapp.service.service.MerchantService;
 import org.slf4j.Logger;
@@ -19,11 +20,6 @@ public class MerchantController {
         this.merchantService = merchantService;
     }
     
-    /**
-     * Search for merchant data
-     * This endpoint uses a fixed request body internally to call the external API
-     * @return ResponseEntity containing the complete merchant search response
-     */
     @PostMapping("search")
     public ResponseEntity<MerchantSearchResponse> searchMerchant() {
         try {
@@ -37,6 +33,45 @@ public class MerchantController {
             
         } catch (Exception e) {
             log.error("Error processing merchant search request: {}", e.getMessage(), e);
+            return ResponseEntity.status(500).body(null);
+        }
+    }
+
+    @PostMapping("validate-mobile")
+    public ResponseEntity<Boolean> validateMobileNumber(@RequestParam String mobileNumber) {
+        try {
+            log.info("Received request to validate mobile number: {}", mobileNumber);
+            
+            // Call the merchant service to validate mobile number
+            boolean isValid = merchantService.validateMobileNumber(mobileNumber);
+            
+            log.info("Mobile number {} validation result: {}", mobileNumber, isValid);
+            return ResponseEntity.ok(isValid);
+            
+        } catch (Exception e) {
+            log.error("Error processing mobile validation request for {}: {}", mobileNumber, e.getMessage(), e);
+            return ResponseEntity.status(500).body(false);
+        }
+    }
+
+    @PostMapping("fetch-customer-data")
+    public ResponseEntity<CustomerDataResponse> fetchCustomerData(
+            @RequestParam String phnNoCc,
+            @RequestParam String mobileNum,
+            @RequestParam String otp) {
+        try {
+            log.info("Received request to fetch customer data for mobile number: {} with country code: {}", 
+                mobileNum, phnNoCc);
+            
+            // Call the merchant service to fetch customer data
+            CustomerDataResponse response = merchantService.fetchCustomerData(phnNoCc, mobileNum, otp);
+            
+            log.info("Customer data fetch completed successfully for mobile number: {}", mobileNum);
+            return ResponseEntity.ok(response);
+            
+        } catch (Exception e) {
+            log.error("Error processing customer data fetch request for mobile number {} with country code {}: {}", 
+                mobileNum, phnNoCc, e.getMessage(), e);
             return ResponseEntity.status(500).body(null);
         }
     }
