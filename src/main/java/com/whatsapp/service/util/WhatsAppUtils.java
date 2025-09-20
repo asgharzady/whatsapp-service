@@ -160,5 +160,66 @@ public class WhatsAppUtils {
         return new String[]{countryCode, mobileNumber};
     }
     
+    /**
+     * Formats card title for WhatsApp list display
+     * 
+     * @param maskCardNum The masked card number (e.g., "622964******1782")
+     * @param cardName The card holder name
+     * @return Formatted card title truncated to WhatsApp limits
+     */
+    public static String formatCardTitle(String maskCardNum, String cardName) {
+        if (maskCardNum == null && cardName == null) {
+            return "Card";
+        }
+        
+        String title;
+        if (maskCardNum != null && cardName != null) {
+            title = cardName + " - " + maskCardNum;
+        } else if (maskCardNum != null) {
+            title = maskCardNum;
+        } else {
+            title = cardName;
+        }
+        
+        return truncateMerchantNameForTitle(title); // Reuse existing truncation logic
+    }
+    
+    /**
+     * Formats card description for WhatsApp list display
+     * 
+     * @param productName The card product name (e.g., "UPI CONSUMER")
+     * @param availableBalance The available balance (e.g., "1014.908000")
+     * @return Formatted card description truncated to WhatsApp limits
+     */
+    public static String formatCardDescription(String productName, String availableBalance) {
+        if (productName == null && availableBalance == null) {
+            return "Card details";
+        }
+        
+        StringBuilder description = new StringBuilder();
+        
+        if (productName != null && !productName.isEmpty()) {
+            description.append(productName);
+        }
+        
+        if (availableBalance != null && !availableBalance.isEmpty()) {
+            try {
+                double balance = Double.parseDouble(availableBalance);
+                if (description.length() > 0) {
+                    description.append(" | ");
+                }
+                description.append("Balance: $").append(String.format("%.2f", balance));
+            } catch (NumberFormatException e) {
+                // If balance parsing fails, just append as string
+                if (description.length() > 0) {
+                    description.append(" | ");
+                }
+                description.append("Balance: ").append(availableBalance);
+            }
+        }
+        
+        return truncateDescriptionForList(description.toString());
+    }
+    
 
 }

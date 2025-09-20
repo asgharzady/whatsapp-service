@@ -25,6 +25,9 @@ public class UserSession {
     
     @Column(name = "selected_merchant")
     private String selectedMerchant;
+
+    @Column(name = "selected_card")
+    private String selectedCard;
     @Column
     private Long amount;
     @Column
