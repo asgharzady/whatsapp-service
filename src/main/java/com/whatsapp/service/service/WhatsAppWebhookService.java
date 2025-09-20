@@ -70,6 +70,11 @@ public class WhatsAppWebhookService {
             return;
         }
         String from = extractFrom(root);
+        if (!merchantService.validateMobileNumber(WhatsAppUtils.getLastTenDigits(from))){
+            sendWhatsAppMessage(from, "Hi, welcome to AppoPay\n\nPlease register with your mobile number.");
+            return;
+        }
+
         String messageText = extractMessageText(root);
         if (from == null || messageText == null) {
             log.warn("Malformed message payload. from={} text={}\n{}", from, messageText, safePretty(root));
