@@ -27,25 +27,6 @@ public class WhatsAppUtils {
             ? description.substring(0, MAX_LIST_ROW_DESCRIPTION_LENGTH) 
             : description;
     }
-
-    public static String truncateButtonText(String buttonText) {
-        if (buttonText == null) {
-            return "";
-        }
-        return buttonText.length() > MAX_BUTTON_TEXT_LENGTH 
-            ? buttonText.substring(0, MAX_BUTTON_TEXT_LENGTH) 
-            : buttonText;
-    }
-
-    public static String truncateHeaderText(String headerText) {
-        if (headerText == null) {
-            return "";
-        }
-        return headerText.length() > MAX_HEADER_TEXT_LENGTH 
-            ? headerText.substring(0, MAX_HEADER_TEXT_LENGTH) 
-            : headerText;
-    }
-
     public static String createMerchantDescription(String merchantName, String streetName) {
         String description = "Select to pay " + merchantName;
         
@@ -159,38 +140,7 @@ public class WhatsAppUtils {
         
         return new String[]{countryCode, mobileNumber};
     }
-    
-    /**
-     * Formats card title for WhatsApp list display
-     * 
-     * @param maskCardNum The masked card number (e.g., "622964******1782")
-     * @param cardName The card holder name
-     * @return Formatted card title truncated to WhatsApp limits
-     */
-    public static String formatCardTitle(String maskCardNum, String cardName) {
-        if (maskCardNum == null && cardName == null) {
-            return "Card";
-        }
-        
-        String title;
-        if (maskCardNum != null && cardName != null) {
-            title = cardName + " - " + maskCardNum;
-        } else if (maskCardNum != null) {
-            title = maskCardNum;
-        } else {
-            title = cardName;
-        }
-        
-        return truncateMerchantNameForTitle(title); // Reuse existing truncation logic
-    }
-    
-    /**
-     * Formats card description for WhatsApp list display
-     * 
-     * @param productName The card product name (e.g., "UPI CONSUMER")
-     * @param availableBalance The available balance (e.g., "1014.908000")
-     * @return Formatted card description truncated to WhatsApp limits
-     */
+
     public static String formatCardDescription(String productName, String availableBalance) {
         if (productName == null && availableBalance == null) {
             return "Card details";

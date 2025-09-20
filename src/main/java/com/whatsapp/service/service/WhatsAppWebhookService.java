@@ -352,107 +352,6 @@ public class WhatsAppWebhookService {
         }
         return null;
     }
-    //TODO to remove
-    private void sendWhatsAppInteractiveList(String to, List<MerchantSearchResponse.MerchantData> merchants) {
-        try {
-            // Create interactive message payload with list
-            Map<String, Object> messagePayload = new HashMap<>();
-            messagePayload.put("messaging_product", "whatsapp");
-            messagePayload.put("to", to);
-            messagePayload.put("type", "interactive");
-
-            // Interactive content
-            Map<String, Object> interactive = new HashMap<>();
-            interactive.put("type", "list");
-
-            // Body text
-            Map<String, String> body = new HashMap<>();
-            body.put("text", "Hi, welcome to AppoPay\n\nSelect a merchant to pay:");
-            interactive.put("body", body);
-
-            // Header (optional)
-            Map<String, String> header = new HashMap<>();
-            header.put("type", "text");
-            header.put("text", "💳 Merchant Selection");
-            interactive.put("header", header);
-
-            // Action with list
-            Map<String, Object> action = new HashMap<>();
-            action.put("button", "View Merchants");
-
-            // List sections (can have multiple sections, each with up to 10 rows)
-            List<Map<String, Object>> sections = new ArrayList<>();
-            Map<String, Object> section = new HashMap<>();
-            section.put("title", "Available Merchants");
-
-            // List rows (max 10 merchants per list)
-            List<Map<String, Object>> rows = new ArrayList<>();
-            int maxMerchants = Math.min(merchants.size(), 10);
-
-            for (int i = 0; i < maxMerchants; i++) {
-                Map<String, Object> row = new HashMap<>();
-                row.put("id", "merchant_" + i);
-
-                // Use utility function to truncate merchant name for title
-                String merchantName = merchants.get(i).getMerchantName();
-                String truncatedName = WhatsAppUtils.truncateMerchantNameForTitle(merchantName);
-                row.put("title", truncatedName);
-
-                // Use utility function to create and truncate description
-                String description = WhatsAppUtils.createMerchantDescription(
-                    merchantName, 
-                    merchants.get(i).getStreetName()
-                );
-                row.put("description", description);
-
-                rows.add(row);
-            }
-
-            section.put("rows", rows);
-            sections.add(section);
-            action.put("sections", sections);
-
-            interactive.put("action", action);
-            messagePayload.put("interactive", interactive);
-
-            log.info("Interactive list payload created for {}", to);
-            log.debug("Payload: {}", messagePayload);
-
-            // Set up headers
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_JSON);
-            headers.setBearerAuth(accessToken);
-
-            // Create HTTP entity
-            HttpEntity<Map<String, Object>> requestEntity = new HttpEntity<>(messagePayload, headers);
-
-            log.info("Sending interactive list to WhatsApp API...");
-
-            // Make the API call
-            ResponseEntity<String> response = restTemplate.exchange(whatsappApiUrl, HttpMethod.POST, requestEntity, String.class);
-
-            log.info("WhatsApp API response status: {}", response.getStatusCode());
-            log.info("WhatsApp API response body: {}", response.getBody());
-
-            if (response.getStatusCode().is2xxSuccessful()) {
-                log.info("Interactive list sent successfully to {}", to);
-            } else {
-                log.info("Failed to send interactive list to {}. Status: {}, Response: {}", to, response.getStatusCode(), response.getBody());
-                throw new RuntimeException("WhatsApp API rejected interactive list");
-            }
-
-        } catch (Exception e) {
-            log.info("Error sending WhatsApp interactive list to {}: {}", to, e.getMessage(), e);
-            // Fallback to regular text message
-            StringBuilder fallbackMenu = new StringBuilder();
-            fallbackMenu.append("Hi, welcome to AppoPay\n\nSelect Merchant to Pay:\n\n");
-            for (int i = 0; i < merchants.size(); i++) {
-                fallbackMenu.append(i + 1).append(") ").append(merchants.get(i).getMerchantName()).append("\n\n");
-            }
-            sendWhatsAppMessage(to, fallbackMenu.toString().trim());
-        }
-    }
-
     private void sendWhatsAppInteractiveListForMerchants(String to, List<MerchantSearchResponse.MerchantData> merchants) {
         List<Map<String, String>> listItems = new ArrayList<>();
         
@@ -571,10 +470,7 @@ public class WhatsAppWebhookService {
             sendFallbackTextMessage(to, items, fallbackType);
         }
     }
-    
-    /**
-     * Fallback method to send text message when interactive list fails
-     */
+
     private void sendFallbackTextMessage(String to, List<Map<String, String>> items, String type) {
         StringBuilder fallbackMenu = new StringBuilder();
         
