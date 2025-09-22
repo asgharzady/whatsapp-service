@@ -378,7 +378,7 @@ public class WhatsAppWebhookService {
             CustomerDataResponse.Card card = cards.get(i);
             Map<String, String> item = new HashMap<>();
             item.put("id", "card_" + i);
-            item.put("title", card.getMaskCardNum());
+            item.put("title", card.getCardRefNum());
             item.put("description", WhatsAppUtils.formatCardDescription(card.getProductName(),
                 card.getWalletInfo() != null ? card.getWalletInfo().getAvailBal() : "0"));
             listItems.add(item);
@@ -505,7 +505,7 @@ public class WhatsAppWebhookService {
             request.getRequestData().getIsoReqData().setFld12(WhatsAppUtils.getCurrentTimeHHMMSS());
             request.getRequestData().getIsoReqData().setFld13(WhatsAppUtils.getCurrentDateMMYY());
             request.getRequestData().getIsoReqData().setFld4(WhatsAppUtils.convertToISO8583Amount(String.valueOf(session.getAmount())));
-            request.getRequestData().getIsoReqData().setFld2(merchantService.decryptCmsCardNumber(session.getCardNo()).getRespInfo().getRespData().getDCardNum());
+            request.getRequestData().getIsoReqData().setFld2(merchantService.decryptCmsCardNumber(session.getSelectedCard()).getRespInfo().getRespData().getDCardNum());
             log.debug("Purchase request prepared with card: {}, CVV: {}, PIN: {}", 
                 session.getCardNo(), "***", "******");
             
