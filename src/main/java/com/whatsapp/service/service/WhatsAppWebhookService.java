@@ -150,8 +150,7 @@ public class WhatsAppWebhookService {
                     session.setCurrentState("LANGUAGE_SELECTION");
                     session.setAmount(Long.parseLong(messageText));
                     saveSession(session);
-                    boolean transactionSuccess = true;
-//                    boolean transactionSuccess = purchaseTrx(session);
+                    boolean transactionSuccess = purchaseTrx(session);
                     if (transactionSuccess) {
                         String merchant = session.getSelectedMerchant();
                         String amount = String.valueOf(session.getAmount()); // You can get this from session or transaction response
@@ -502,9 +501,11 @@ public class WhatsAppWebhookService {
             PurchaseTrxRequest request = new PurchaseTrxRequest();
 
             // Override specific fields from UserSession
-            request.getRequestData().getIsoReqData().setFld2(session.getCardNo());
-            request.getRequestData().getIsoReqData().setFld22(String.valueOf(session.getCvv()));
-            
+            request.getRequestData().getIsoReqData().setFld11(WhatsAppUtils.generateUnique6CharString());
+            request.getRequestData().getIsoReqData().setFld12(WhatsAppUtils.getCurrentTimeHHMMSS());
+            request.getRequestData().getIsoReqData().setFld13(WhatsAppUtils.getCurrentDateMMYY());
+            request.getRequestData().getIsoReqData().setFld4(WhatsAppUtils.convertToISO8583Amount(String.valueOf(session.getAmount())));
+            request.getRequestData().getIsoReqData().setFld2(merchantService.decryptCmsCardNumber(session.getCardNo()).getRespInfo().getRespData().getDCardNum());
             log.debug("Purchase request prepared with card: {}, CVV: {}, PIN: {}", 
                 session.getCardNo(), "***", "******");
             

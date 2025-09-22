@@ -170,6 +170,76 @@ public class WhatsAppUtils {
         
         return truncateDescriptionForList(description.toString());
     }
-    
+
+    public static String generateUnique6CharString() {
+        long timestamp = System.currentTimeMillis();
+        String base36 = Long.toString(timestamp, 36);
+        // Take the last 6 characters to ensure uniqueness
+        // If less than 6 characters, pad with leading zeros
+        if (base36.length() >= 6) {
+            return base36.substring(base36.length() - 6).toUpperCase();
+        } else {
+            return String.format("%6s", base36).replace(' ', '0').toUpperCase();
+        }
+    }
+
+    public static String getCurrentTimeHHMMSS() {
+        java.time.LocalTime now = java.time.LocalTime.now();
+        return String.format("%02d%02d%02d", 
+            now.getHour(), 
+            now.getMinute(), 
+            now.getSecond()
+        );
+    }
+
+    public static String generateUnique12DigitString() {
+        long timestamp = System.currentTimeMillis();
+        String timestampStr = String.valueOf(timestamp);
+        
+        // Take the last 12 digits of timestamp
+        // Current timestamps are 13 digits, so this gives us a 12-digit unique string
+        if (timestampStr.length() >= 12) {
+            return timestampStr.substring(timestampStr.length() - 12);
+        } else {
+            // If somehow less than 12 digits, pad with leading zeros
+            return String.format("%012d", timestamp);
+        }
+    }
+
+    public static String convertToISO8583Amount(String numberString) {
+        if (numberString == null || numberString.trim().isEmpty()) {
+            return "000000000000";
+        }
+        
+        try {
+            // Parse the input as double to handle decimal places
+            double amount = Double.parseDouble(numberString.trim());
+            
+            // Convert to cents (multiply by 100 and round to avoid floating point issues)
+            long amountInCents = Math.round(amount * 100);
+            
+            // Ensure non-negative
+            amountInCents = Math.abs(amountInCents);
+            
+            // Format as 12-digit string with leading zeros
+            return String.format("%012d", amountInCents);
+            
+        } catch (NumberFormatException e) {
+            // If parsing fails, return zeros
+            return "000000000000";
+        }
+    }
+
+    /**
+     * Gets current date in mmyy format
+     * @return Current date as a 4-digit string (e.g., "0925" for September 2025)
+     */
+    public static String getCurrentDateMMYY() {
+        java.time.LocalDate now = java.time.LocalDate.now();
+        return String.format("%02d%02d", 
+            now.getMonthValue(), 
+            now.getYear() % 100
+        );
+    }
 
 }
