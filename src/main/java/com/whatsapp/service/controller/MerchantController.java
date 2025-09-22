@@ -1,6 +1,7 @@
 package com.whatsapp.service.controller;
 
 import com.whatsapp.service.dto.CustomerDataResponse;
+import com.whatsapp.service.dto.DecryptCmsCardResponse;
 import com.whatsapp.service.dto.MerchantSearchResponse;
 import com.whatsapp.service.service.MerchantService;
 import org.slf4j.Logger;
@@ -72,6 +73,24 @@ public class MerchantController {
         } catch (Exception e) {
             log.error("Error processing customer data fetch request for mobile number {} with country code {}: {}", 
                 mobileNum, phnNoCc, e.getMessage(), e);
+            return ResponseEntity.status(500).body(null);
+        }
+    }
+
+    @PostMapping("decrypt-cms-card")
+    public ResponseEntity<DecryptCmsCardResponse> decryptCmsCardNumber(@RequestParam String cardRefNum) {
+        try {
+            log.info("Received request to decrypt CMS card number: {}", cardRefNum);
+            
+            // Call the merchant service to decrypt CMS card number
+            DecryptCmsCardResponse response = merchantService.decryptCmsCardNumber(cardRefNum);
+            
+            log.info("Decrypt CMS card number completed successfully for card ref: {}", cardRefNum);
+            return ResponseEntity.ok(response);
+            
+        } catch (Exception e) {
+            log.error("Error processing decrypt CMS card request for card ref {}: {}", 
+                cardRefNum, e.getMessage(), e);
             return ResponseEntity.status(500).body(null);
         }
     }

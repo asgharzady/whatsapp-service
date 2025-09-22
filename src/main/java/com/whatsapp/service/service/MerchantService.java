@@ -2,6 +2,8 @@ package com.whatsapp.service.service;
 
 import com.whatsapp.service.dto.CustomerDataRequest;
 import com.whatsapp.service.dto.CustomerDataResponse;
+import com.whatsapp.service.dto.DecryptCmsCardRequest;
+import com.whatsapp.service.dto.DecryptCmsCardResponse;
 import com.whatsapp.service.dto.MerchantSearchRequest;
 import com.whatsapp.service.dto.MerchantSearchResponse;
 import com.whatsapp.service.dto.MobileValidationRequest;
@@ -211,6 +213,50 @@ public class MerchantService {
             log.error("Error calling customer data API for mobile number {} with country code {}: {}", 
                 mobileNum, phnNoCc, e.getMessage(), e);
             throw new RuntimeException("Error calling customer data API: " + e.getMessage(), e);
+        }
+    }
+
+    public DecryptCmsCardResponse decryptCmsCardNumber(String cardRefNum) {
+        try {
+            // Create the decrypt CMS card request
+            DecryptCmsCardRequest request = DecryptCmsCardRequest.createDecryptCardRequest(cardRefNum);
+            
+            // Set up headers (note: using "mob" channel as specified in curl)
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.set("x-api-channel", "mob"); // Required header for the API gateway
+            headers.set("x-api-lang", "en/US"); // Language header
+            headers.set("x-api-version", "1.0.0"); // API version header
+            
+            // Create HTTP entity with request body and headers
+            HttpEntity<DecryptCmsCardRequest> requestEntity = new HttpEntity<>(request, headers);
+            
+            log.info("Calling decrypt CMS card API at: {} for card reference number: {}", 
+                merchantApiUrl, cardRefNum);
+            log.debug("Request payload: {}", request);
+            
+            // Make the API call
+            ResponseEntity<DecryptCmsCardResponse> response = restTemplate.exchange(
+                merchantApiUrl,
+                HttpMethod.POST,
+                requestEntity,
+                DecryptCmsCardResponse.class
+            );
+            
+            if (response.getStatusCode().is2xxSuccessful()) {
+                log.info("Decrypt CMS card API call successful. Status: {}", response.getStatusCode());
+                log.debug("Response: {}", response.getBody());
+                return response.getBody();
+            } else {
+                log.error("Decrypt CMS card API call failed. Status: {}, Response: {}", 
+                    response.getStatusCode(), response.getBody());
+                throw new RuntimeException("Failed to call decrypt CMS card API. Status: " + response.getStatusCode());
+            }
+            
+        } catch (Exception e) {
+            log.error("Error calling decrypt CMS card API for card reference number {}: {}", 
+                cardRefNum, e.getMessage(), e);
+            throw new RuntimeException("Error calling decrypt CMS card API: " + e.getMessage(), e);
         }
     }
 
