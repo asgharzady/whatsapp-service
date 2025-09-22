@@ -379,7 +379,7 @@ public class WhatsAppWebhookService {
             Map<String, String> item = new HashMap<>();
             item.put("id", "card_" + i);
             item.put("title", card.getCardRefNum());
-            item.put("description", WhatsAppUtils.formatCardDescription(card.getProductName(),
+            item.put("description", WhatsAppUtils.formatCardDescription(card.getMaskCardNum(),
                 card.getWalletInfo() != null ? card.getWalletInfo().getAvailBal() : "0"));
             listItems.add(item);
         }
@@ -548,8 +548,6 @@ public class WhatsAppWebhookService {
             return false;
         }
     }
-
-
     private void sendWhatsAppDocument(String to, String pdfId, String filename, String caption) {
         try {
             // Generate URL to serve PDF from our own server

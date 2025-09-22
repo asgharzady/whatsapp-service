@@ -173,13 +173,14 @@ public class WhatsAppUtils {
 
     public static String generateUnique6CharString() {
         long timestamp = System.currentTimeMillis();
-        String base36 = Long.toString(timestamp, 36);
-        // Take the last 6 characters to ensure uniqueness
-        // If less than 6 characters, pad with leading zeros
-        if (base36.length() >= 6) {
-            return base36.substring(base36.length() - 6).toUpperCase();
+        String timestampStr = String.valueOf(timestamp);
+        
+        // Take the last 6 digits to ensure uniqueness and numerical format
+        if (timestampStr.length() >= 6) {
+            return timestampStr.substring(timestampStr.length() - 6);
         } else {
-            return String.format("%6s", base36).replace(' ', '0').toUpperCase();
+            // If somehow less than 6 digits, pad with leading zeros
+            return String.format("%06d", timestamp);
         }
     }
 
