@@ -1,8 +1,10 @@
 package com.whatsapp.service.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import lombok.Data;
 import java.util.List;
 
+@Data
 public class MerchantSearchResponse {
     
     @JsonProperty("resp_info")
@@ -15,16 +17,8 @@ public class MerchantSearchResponse {
         this.respInfo = respInfo;
     }
     
-    // Getters and Setters
-    public RespInfo getRespInfo() {
-        return respInfo;
-    }
-    
-    public void setRespInfo(RespInfo respInfo) {
-        this.respInfo = respInfo;
-    }
-    
     // Inner classes
+    @Data
     public static class RespInfo {
         @JsonProperty("app_corrective_action")
         private String appCorrectiveAction;
@@ -61,42 +55,9 @@ public class MerchantSearchResponse {
         
         // Constructors
         public RespInfo() {}
-        
-        // Getters and Setters
-        public String getAppCorrectiveAction() { return appCorrectiveAction; }
-        public void setAppCorrectiveAction(String appCorrectiveAction) { this.appCorrectiveAction = appCorrectiveAction; }
-        
-        public String getAppErrDesc() { return appErrDesc; }
-        public void setAppErrDesc(String appErrDesc) { this.appErrDesc = appErrDesc; }
-        
-        public String getRejectCode() { return rejectCode; }
-        public void setRejectCode(String rejectCode) { this.rejectCode = rejectCode; }
-        
-        public String getRejectLongDesc() { return rejectLongDesc; }
-        public void setRejectLongDesc(String rejectLongDesc) { this.rejectLongDesc = rejectLongDesc; }
-        
-        public String getRejectModule() { return rejectModule; }
-        public void setRejectModule(String rejectModule) { this.rejectModule = rejectModule; }
-        
-        public String getRejectModuleType() { return rejectModuleType; }
-        public void setRejectModuleType(String rejectModuleType) { this.rejectModuleType = rejectModuleType; }
-        
-        public String getRejectShortDesc() { return rejectShortDesc; }
-        public void setRejectShortDesc(String rejectShortDesc) { this.rejectShortDesc = rejectShortDesc; }
-        
-        public String getRespCode() { return respCode; }
-        public void setRespCode(String respCode) { this.respCode = respCode; }
-        
-        public List<MerchantData> getRespData() { return respData; }
-        public void setRespData(List<MerchantData> respData) { this.respData = respData; }
-        
-        public String getRespDesc() { return respDesc; }
-        public void setRespDesc(String respDesc) { this.respDesc = respDesc; }
-        
-        public Integer getRespStatus() { return respStatus; }
-        public void setRespStatus(Integer respStatus) { this.respStatus = respStatus; }
     }
     
+    @Data
     public static class MerchantData {
         @JsonProperty("merchant_id")
         private String merchantId;
@@ -112,21 +73,9 @@ public class MerchantSearchResponse {
         
         // Constructors
         public MerchantData() {}
-        
-        // Getters and Setters
-        public String getMerchantId() { return merchantId; }
-        public void setMerchantId(String merchantId) { this.merchantId = merchantId; }
-        
-        public String getMerchantName() { return merchantName; }
-        public void setMerchantName(String merchantName) { this.merchantName = merchantName; }
-        
-        public String getStreetName() { return streetName; }
-        public void setStreetName(String streetName) { this.streetName = streetName; }
-        
-        public List<TerminalInfo> getTerminalInfo() { return terminalInfo; }
-        public void setTerminalInfo(List<TerminalInfo> terminalInfo) { this.terminalInfo = terminalInfo; }
     }
     
+    @Data
     public static class TerminalInfo {
         @JsonProperty("city_name")
         private String cityName;
@@ -142,18 +91,5 @@ public class MerchantSearchResponse {
         
         // Constructors
         public TerminalInfo() {}
-        
-        // Getters and Setters
-        public String getCityName() { return cityName; }
-        public void setCityName(String cityName) { this.cityName = cityName; }
-        
-        public String getTerminalId() { return terminalId; }
-        public void setTerminalId(String terminalId) { this.terminalId = terminalId; }
-        
-        public String getTerminalLoc() { return terminalLoc; }
-        public void setTerminalLoc(String terminalLoc) { this.terminalLoc = terminalLoc; }
-        
-        public String getTerminalName() { return terminalName; }
-        public void setTerminalName(String terminalName) { this.terminalName = terminalName; }
     }
 }

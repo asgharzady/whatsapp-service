@@ -499,17 +499,20 @@ public class WhatsAppWebhookService {
             log.info("Initiating purchase transaction for session: {}", session.getPhoneNumber());
             
             PurchaseTrxRequest request = new PurchaseTrxRequest();
-
+            MerchantSearchResponse.MerchantData merchantData = merchantService.searchMerchantData().getRespInfo().getRespData().
+                    stream().filter(i -> i.getMerchantName().equals(session.getSelectedMerchant())).findFirst().get();
             // Override specific fields from UserSession
             request.getRequestData().getIsoReqData().setFld11(WhatsAppUtils.generateUnique6CharString());
             request.getRequestData().getIsoReqData().setFld12(WhatsAppUtils.getCurrentTimeHHMMSS());
             request.getRequestData().getIsoReqData().setFld13(WhatsAppUtils.getCurrentDateMMYY());
             request.getRequestData().getIsoReqData().setFld4(WhatsAppUtils.convertToISO8583Amount(String.valueOf(session.getAmount())));
             request.getRequestData().getIsoReqData().setFld2(merchantService.decryptCmsCardNumber(session.getSelectedCard()).getRespInfo().getRespData().getDCardNum());
+            request.getRequestData().getIsoReqData().setFld41(merchantData.getTerminalInfo().get(0).getTerminalId());
+            request.getRequestData().getIsoReqData().setFld42(merchantData.getMerchantId());
+
             log.debug("Purchase request prepared with card: {}, CVV: {}, PIN: {}", 
                 session.getCardNo(), "***", "******");
-            
-            // Print the complete request body before sending
+
             try {
                 ObjectMapper objectMapper = new ObjectMapper();
                 String requestJson = objectMapper.writeValueAsString(request);
@@ -519,8 +522,7 @@ public class WhatsAppWebhookService {
             } catch (Exception e) {
                 log.warn("Failed to serialize request body for logging: {}", e.getMessage());
             }
-            
-            // Call merchant service
+
             PurchaseTrxResponse response = merchantService.purchaseTrx(request);
             
             if (response != null && response.getRespInfo() != null) {
@@ -528,8 +530,7 @@ public class WhatsAppWebhookService {
                 String respDesc = response.getRespInfo().getRespDesc();
                 
                 log.info("Purchase transaction response - Code: {}, Desc: {}", respCode, respDesc);
-                
-                // Check if transaction was successful (assuming "0" means success)
+
                 if ("0".equals(respCode)) {
                     log.info("Purchase transaction successful for session: {}", session.getPhoneNumber());
                     return true;
